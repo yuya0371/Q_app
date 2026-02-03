@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=375, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Q. - モックアップ</title>
+  <style>
+    :root {
+      --bg-primary: #1A1A1A;
+      --bg-secondary: #2A2A2A;
+      --bg-tertiary: #3A3A3A;
+      --accent: #8B5CF6;
+      --accent-hover: #7C3AED;
+      --text-primary: #FFFFFF;
+      --text-secondary: #A0A0A0;
+      --text-muted: #6B7280;
+      --border: #3A3A3A;
+      --danger: #EF4444;
+      --success: #10B981;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .mock-container {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .phone-frame {
+      width: 375px;
+      height: 812px;
+      background: var(--bg-primary);
+      border-radius: 40px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      border: 3px solid #333;
+    }
+
+    .screen {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .status-bar {
+      height: 44px;
+      background: var(--bg-primary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 20px;
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+
+    .header {
+      height: 56px;
+      background: var(--bg-primary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .header-logo {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .header-date {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .header-btn {
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 8px;
+    }
+
+    .header-action {
+      color: var(--accent);
+      font-size: 16px;
+      font-weight: 600;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .tab-bar {
+      height: 83px;
+      background: var(--bg-secondary);
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-start;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .tab-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      color: var(--text-muted);
+      font-size: 10px;
+      cursor: pointer;
+      background: none;
+      border: none;
+    }
+
+    .tab-item.active {
+      color: var(--accent);
+    }
+
+    .tab-icon {
+      font-size: 24px;
+    }
+
+    /* Components */
+    .card {
+      background: var(--bg-secondary);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+
+    .question-card {
+      background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+      border: 1px solid var(--border);
+      text-align: center;
+      padding: 32px 24px;
+    }
+
+    .question-text {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .btn {
+      padding: 14px 24px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      width: 100%;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-secondary {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--accent);
+      border: 2px solid var(--accent);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    .input-group {
+      margin-bottom: 16px;
+    }
+
+    .input-label {
+      display: block;
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .input {
+      width: 100%;
+      padding: 14px 16px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text-primary);
+      font-size: 16px;
+    }
+
+    .input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .input::placeholder {
+      color: var(--text-muted);
+    }
+
+    /* Answer Card */
+    .answer-card {
+      display: flex;
+      gap: 12px;
+    }
+
+    .avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+    }
+
+    .avatar-lg {
+      width: 80px;
+      height: 80px;
+      font-size: 32px;
+    }
+
+    .answer-content {
+      flex: 1;
+    }
+
+    .answer-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .user-name {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .user-id {
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .answer-text {
+      color: var(--text-primary);
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .answer-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .answer-time {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .answer-time.on-time {
+      color: var(--success);
+    }
+
+    .reactions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .reaction-btn {
+      padding: 6px 8px;
+      background: var(--bg-tertiary);
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .reaction-btn:hover {
+      background: var(--bg-primary);
+    }
+
+    .reaction-btn.active {
+      background: var(--accent);
+    }
+
+    /* Profile */
+    .profile-header {
+      text-align: center;
+      padding: 20px 0;
+    }
+
+    .profile-name {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-top: 12px;
+    }
+
+    .profile-id {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    .profile-stats {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      margin-top: 16px;
+    }
+
+    .stat {
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .stat-value {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* User List */
+    .user-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .user-info {
+      flex: 1;
+    }
+
+    /* Settings */
+    .settings-section {
+      margin-bottom: 24px;
+    }
+
+    .settings-title {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      padding-left: 4px;
+    }
+
+    .settings-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+
+    .settings-item:first-of-type {
+      border-radius: 12px 12px 0 0;
+    }
+
+    .settings-item:last-of-type {
+      border-radius: 0 0 12px 12px;
+      border-bottom: none;
+    }
+
+    .settings-item:only-of-type {
+      border-radius: 12px;
+    }
+
+    .settings-item-text {
+      color: var(--text-primary);
+    }
+
+    .settings-item-text.danger {
+      color: var(--danger);
+    }
+
+    .settings-arrow {
+      color: var(--text-muted);
+    }
+
+    /* Modal */
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Lock message */
+    .lock-message {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-secondary);
+    }
+
+    .lock-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    /* Radio */
+    .radio-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .radio-item {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      padding: 16px;
+      cursor: pointer;
+      border: 2px solid transparent;
+    }
+
+    .radio-item.selected {
+      border-color: var(--accent);
+    }
+
+    .radio-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .radio-circle {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid var(--text-muted);
+    }
+
+    .radio-item.selected .radio-circle {
+      border-color: var(--accent);
+      background: var(--accent);
+    }
+
+    .radio-label {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .radio-desc {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-top: 8px;
+      margin-left: 32px;
+    }
+
+    /* Screen Label */
+    .screen-label {
+      position: absolute;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent);
+      color: white;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 16px 0;
+    }
+
+    /* Link */
+    .link {
+      color: var(--accent);
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .link:hover {
+      text-decoration: underline;
+    }
+
+    /* Text */
+    .text-center {
+      text-align: center;
+    }
+
+    .text-secondary {
+      color: var(--text-secondary);
+    }
+
+    .text-muted {
+      color: var(--text-muted);
+    }
+
+    .text-sm {
+      font-size: 14px;
+    }
+
+    .mt-16 {
+      margin-top: 16px;
+    }
+
+    .mb-16 {
+      margin-bottom: 16px;
+    }
+
+    .mb-24 {
+      margin-bottom: 24px;
+    }
+
+    /* Character count */
+    .char-count {
+      text-align: right;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    /* QR Code placeholder */
+    .qr-placeholder {
+      width: 200px;
+      height: 200px;
+      background: white;
+      border-radius: 16px;
+      margin: 0 auto 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #333;
+      font-size: 14px;
+    }
+
+    /* Page title for navigation */
+    h2.page-title {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="mock-container">
+
+    <!-- Login Screen -->
+    <div class="phone-frame">
+      <div class="screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <span>100%</span>
+        </div>
+        <div class="content" style="display: flex; flex-direction: column; justify-content: center;">
+          <div class="text-center mb-24">
+            <div style="font-size: 64px; font-weight: 700; color: var(--accent);">Q.</div>
+          </div>
+
+          <div class="input-group">
+            <input type="email" class="input" placeholder="メールアドレス">
+          </div>
+
+          <div class="input-group">
+            <input type="password" class="input" placeholder="パスワード">
+          </div>
+
+          <button class="btn btn-primary mb-16">ログイン</button>
+
+          <div class="text-center mb-24">
+            <a class="link text-sm">パスワードを忘れた方</a>
+          </div>
+
+          <div class="divider"></div>
+
+          <p class="text-center text-secondary text-sm mb-16">アカウントをお持ちでない方</p>
+
+          <button class="btn btn-outline">新規登録はこちら</button>
+        </div>
+        <div class="screen-label">ログイン画面</div>
+      </div>
+    </div>
+
+    <!-- Signup Screen -->
+    <div class="phone-frame">
+      <div class="screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <span>100%</span>
+        </div>
+        <div class="header">
+          <button class="header-btn">←</button>
+          <span class="header-title">新規登録</span>
+          <span style="width: 36px;"></span>
+        </div>
+        <div class="content">
+          <div class="input-group">
+            <label class="input-label">メールアドレス</label>
+            <input type="email" class="input" placeholder="example@mail.com">
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">パスワード</label>
+            <input type="password" class="input" placeholder="8文字以上">
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">生年月日</label>
+            <input type="text" class="input" placeholder="2000/01/15">
+            <p class="text-sm text-muted" style="margin-top: 8px;">※13歳以上の方のみ登録可能</p>
+          </div>
+
+          <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 24px;">
+            <input type="checkbox" style="margin-top: 4px;">
+            <label class="text-secondary text-sm">
+              <a class="link">利用規約</a>・<a class="link">プライバシーポリシー</a>に同意する
+            </label>
+          </div>
+
+          <button class="btn btn-primary">登録する</button>
+        </div>
+        <div class="screen-label">サインアップ画面</div>
+      </div>
+    </div>
+
+    <!-- Set App ID Screen -->
+    <div class="phone-frame">
+      <div class="screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <span>100%</span>
+        </div>
+        <div class="header">
+          <span style="width: 36px;"></span>
+          <span class="header-title">IDを決めよう</span>
+          <span style="width: 36px;"></span>
+        </div>
+        <div class="content">
+          <p class="text-center text-secondary mb-24">
+            あなたのIDを設定しましょう<br>
+            <span class="text-muted text-sm">このIDは後から変更できません</span>
+          </p>
+
+          <div class="input-group">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="color: var(--text-secondary); font-size: 20px;">@</span>
+              <input type="text" class="input" placeholder="yamada_taro" style="flex: 1;" value="yamada_taro">
+            </div>
+            <p style="color: var(--success); font-size: 14px; margin-top: 8px;">✓ このIDは使用可能です</p>
+          </div>
+
+          <div class="card" style="background: var(--bg-tertiary);">
+            <p class="text-sm text-secondary">
+              ・3〜15文字<br>
+              ・英小文字、数字、_（アンダースコア）のみ<br>
+              ・先頭は英字
+            </p>
+          </div>
+
+          <div style="margin-top: 24px;">
+            <button class="btn btn-primary">次へ</button>
+          </div>
+        </div>
+        <div class="screen-label">アプリ内ID設定</div>
+      </div>
+    </div>
+
+    <!-- Home Screen (Before Answer) -->
+    <div class="phone-frame">
+      <div class="screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <span>100%</span>
+        </div>
+        <div class="header">
+          <span class="header-logo">Q.</span>
+          <span class="header-date">2026.02.04</span>
+        </div>
+        <div class="content">
+          <div class="card question-card">
+            <p class="question-text">最近ハマっている<br>ことは？</p>
+            <button class="btn btn-primary" style="width: auto; padding: 14px 48px;">回答する</button>
+          </div>
+
+          <div class="lock-message">
+            <div class="lock-icon">🔒</div>
+            <p>回答するとみんなの回答が<br>見れるようになります</p>
+          </div>
+        </div>
+        <div class="tab-bar">
+          <button class="tab-item active">
+            <span class="tab-icon">🏠</span>
+            <span>ホーム</span>
+          </button>
+          <button class="tab-item">
+            <span class="tab-icon">🔍</span>
+            <span>検索</span>
+          </button>
+          <button class="tab-item">
+            <span class="tab-icon">👤</span>
+            <span>マイページ</span>
+          </button>
+        </div>
+        <div class="screen-label">ホーム（未回答）</div>
+      </div>
+    </div>
+
+    <!-- Home Screen (After Answer - Timeline) -->
+    <div class="phone-frame">
+      <div class="screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <span>100%</span>
+        </div>
+        <div class="header">
+          <span class="header-logo">Q.</span>
+          <span class="header-date">2026.02.04</span>
+        </div>
+        <div class="content">
+          <div class="card" style="padding: 12px 16px; margin-bottom: 16px;">
+            <p style="color: var(--text-secondary); font-size: 14px;">最近ハマっていることは？</p>
+          </div>
+
+          <div class="card answer-card">
+            <div class="avatar">山</div>
+            <div class="answer-content">
+              <div class="answer-header">
+                <span class="user-name">山田太郎</span>
+                <span class="user-id">@yamada</span>
+              </div>
+              <p class="answer-text">読書にハマってます！最近は小説をよく読んでいます。</p>
+              <div class="answer-footer">
+                <span class="answer-time on-time">🕐 On-time</span>
+                <div class="reactions">
+                  <button class="reaction-btn">❤️</button>
+                  <button class="reaction-btn active">🔥</button>
+                  <button class="reaction-btn">😂</button>
+                  <button class="reaction-btn">🤔</button>
+                  <button class="reaction-btn">👀</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card answer-card">
+            <div class="avatar" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">田</div>
+            <div class="answer-content">
+              <div class="answer-header">
+                <span class="user-name">田中花子</span>
+                <span class="user-id">@tanaka</span>
+              </div>
+              <p class="answer-text">筋トレ始めました💪</p>
+              <div class="answer-footer">
+                <span class="answer-time">🕐 15m late</span>
+                <div class="reactions">
+                  <button class="reaction-btn">❤️</button>
+                  <button class="reaction-btn">🔥</button>
+                  <button class="reaction-btn">😂</button>
+                  <button class="reaction-btn">🤔</button>
+                  <button class="reaction-btn">👀</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card answer-card">
+            <div class="avatar" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">鈴</div>
+            <div class="answer-content">
+              <div class="answer-header">
+                <span class="user-name">鈴木一郎</span>
+                <span class="user-id">@suzuki</span>
+              </div>
+              <p class="answer-text">カフェ巡りが趣味になりました</p>
+              <div class="answer-footer">
+                <span class="answer-time">🕐 1h late</span>
+                <div class="reactions">
+                  <button class="reaction-btn active">❤️</button>
+                  <button class="reaction-btn">🔥</button>
+                  <button class="reaction-btn">😂</button>
+                  <button class="reaction-btn">🤔</button>
+                  <button class="reaction-btn">👀</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="text-center mt-16">
+            <button class="btn btn-secondary" style="width: auto; padding: 12px 24px;">お題を提案する</button>
+          </div>
+        </div>
+        <div class="tab-bar">
+          <button class="tab-item active">
+            <span class="tab-icon">🏠</span>
+            <span>ホーム</span>
+          </button>
+          <button class="tab-item">
+            <span class="tab-icon">🔍</span>
+            <span>検索</span>
+          </button>
+          <button class="tab-item">
+            <span class="tab-icon">👤</span>
+            <span>マイページ</span>
+          </button>
+        </div>
+        <div class="screen-label">タイムライン</div>
+      </div>
+    </div>
+
+    <!-- Answer Modal -->
+    <div class="phone-frame">
+      <div class="screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <span>100%</span>
+        </div>
+        <div class="header">
+          <button class="header-btn">×</button>
+          <span class="header-title">回答する</span>
+          <button class="header-action">投稿</button>
+        </div>
+        <div class="content">
+          <p style="color: var(--text-secondary); margin-bottom: 16px;">最近ハマっていることは？</p>
+
+          <textarea class="input" style="height: 200px; resize: none;" placeholder="回答を入力...">読書にハマってます！最近は小説をよく読んでいます。</textarea>
+          <p class="char-count">45/80文字</p>
+        </div>
+        <div class="screen-label">回答投稿</div>
+      </div>
+    </div>
+
+    <!-- Search Screen -->
+    <div class="phone-frame">
+      <div class="screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <span>100%</span>
+        </div>
+        <div class="content" style="padding-top: 8px;">
+          <div class="input-group" style="margin-bottom: 24px;">
+            <input type="text" class="input" placeholder="🔍 IDで検索" value="tanaka">
+          </div>
+
+          <div class="user-item" style="border-radius: 12px; background: var(--bg-secondary); padding: 16px;">
+            <div class="avatar" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">田</div>
+            <div class="user-info">
+              <p class="user-name">田中花子</p>
+              <p class="user-id">@tanaka_hanako</p>
+            </div>
+          </div>
+        </div>
+        <div class="tab-bar">
+          <button class="tab-item">
+            <span class="tab-icon">🏠</span>
+            <span>ホーム</span>
+          </button>
+          <button class="tab-item active">
+            <span class="tab-icon">🔍</span>
+            <span>検索</span>
+          </button>
+          <button class="tab-item">
+            <span class="tab-icon">👤</span>
+            <span>マイページ</span>
+          </button>
+        </div>
+        <div class="screen-label">ユーザー検索</div>
+      </div>
+    </div>
+
+    <!-- My Profile Screen -->
+    <div class="phone-frame">
+      <div class="screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <span>100%</span>
+        </div>
+        <div class="header">
+          <span style="width: 36px;"></span>
+          <span class="header-title">マイページ</span>
+          <div style="display: flex; gap: 8px;">
+            <button class="header-btn">↗️</button>
+            <button class="header-btn">⚙️</button>
+          </div>
+        </div>
+        <div class="content">
+          <div class="profile-header">
+            <div class="avatar avatar-lg" style="margin: 0 auto;">山</div>
+            <p class="profile-name">山田太郎</p>
+            <p class="profile-id">@yamada_taro</p>
+            <div class="profile-stats">
+              <div class="stat">
+                <p class="stat-value">42</p>
+                <p class="stat-label">フォロー</p>
+              </div>
+              <div class="stat">
+                <p class="stat-value">38</p>
+                <p class="stat-label">フォロワー</p>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn-secondary mb-24">プロフィールを編集</button>
+
+          <div class="divider"></div>
+
+          <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 12px;">📝 過去の回答</p>
+
+          <div class="card" style="padding: 12px;">
+            <p class="text-muted text-sm">2026.02.04</p>
+            <p class="text-secondary text-sm" style="margin: 4px 0;">最近ハマっていることは？</p>
+            <p style="color: var(--text-primary);">読書にハマってます！</p>
+          </div>
+
+          <div class="card" style="padding: 12px;">
+            <p class="text-muted text-sm">2026.02.03</p>
+            <p class="text-secondary text-sm" style="margin: 4px 0;">好きな季節は？</p>
+            <p style="color: var(--text-primary);">春が好きです</p>
+          </div>
+
+          <p class="text-center"><a class="link text-sm">もっと見る</a></p>
+        </div>
+        <div class="tab-bar">
+          <button class="tab-item">
+            <span class="tab-icon">🏠</span>
+            <span>ホーム</span>
+          </button>
+          <button class="tab-item">
+            <span class="tab-icon">🔍</span>
+            <span>検索</span>
+          </button>
+          <button class="tab-item active">
+            <span class="tab-icon">👤</span>
+            <span>マイページ</span>
+          </button>
+        </div>
+        <div class="screen-label">マイプロフィール</div>
+      </div>
+    </div>
+
+    <!-- Other User Profile -->
+    <div class="phone-frame">
+      <div class="screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <span>100%</span>
+        </div>
+        <div class="header">
+          <button class="header-btn">←</button>
+          <span class="header-title"></span>
+          <button class="header-btn">•••</button>
+        </div>
+        <div class="content">
+          <div class="profile-header">
+            <div class="avatar avatar-lg" style="margin: 0 auto; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">田</div>
+            <p class="profile-name">田中花子</p>
+            <p class="profile-id">@tanaka_hanako</p>
+            <div class="profile-stats">
+              <div class="stat">
+                <p class="stat-value">100</p>
+                <p class="stat-label">フォロー</p>
+              </div>
+              <div class="stat">
+                <p class="stat-value">200</p>
+                <p class="stat-label">フォロワー</p>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary mb-24">フォローする</button>
+
+          <div class="divider"></div>
+
+          <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 12px;">📝 今日の回答</p>
+
+          <div class="card" style="padding: 12px;">
+            <p style="color: var(--text-primary); margin-bottom: 8px;">筋トレ始めました💪</p>
+            <p class="text-muted text-sm">🕐 15m late</p>
+          </div>
+        </div>
+        <div class="tab-bar">
+          <button class="tab-item">
+            <span class="tab-icon">🏠</span>
+            <span>ホーム</span>
+          </button>
+          <button class="tab-item">
+            <span class="tab-icon">🔍</span>
+            <span>検索</span>
+          </button>
+          <button class="tab-item">
+            <span class="tab-icon">👤</span>
+            <span>マイページ</span>
+          </button>
+        </div>
+        <div class="screen-label">他ユーザープロフィール</div>
+      </div>
+    </div>
+
+    <!-- Settings Screen -->
+    <div class="phone-frame">
+      <div class="screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <span>100%</span>
+        </div>
+        <div class="header">
+          <button class="header-btn">←</button>
+          <span class="header-title">設定</span>
+          <span style="width: 36px;"></span>
+        </div>
+        <div class="content">
+          <div class="settings-section">
+            <p class="settings-title">アカウント</p>
+            <div class="settings-item">
+              <span class="settings-item-text">メールアドレス変更</span>
+              <span class="settings-arrow">›</span>
+            </div>
+            <div class="settings-item">
+              <span class="settings-item-text">パスワード変更</span>
+              <span class="settings-arrow">›</span>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <p class="settings-title">プライバシー</p>
+            <div class="settings-item">
+              <span class="settings-item-text">閲覧範囲設定</span>
+              <span class="settings-arrow">›</span>
+            </div>
+            <div class="settings-item">
+              <span class="settings-item-text">ブロック一覧</span>
+              <span class="settings-arrow">›</span>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <p class="settings-title">通知</p>
+            <div class="settings-item">
+              <span class="settings-item-text">通知設定</span>
+              <span class="settings-arrow">›</span>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <p class="settings-title">その他</p>
+            <div class="settings-item">
+              <span class="settings-item-text">利用規約</span>
+              <span class="settings-arrow">›</span>
+            </div>
+            <div class="settings-item">
+              <span class="settings-item-text">プライバシーポリシー</span>
+              <span class="settings-arrow">›</span>
+            </div>
+            <div class="settings-item">
+              <span class="settings-item-text">ログアウト</span>
+              <span class="settings-arrow">›</span>
+            </div>
+            <div class="settings-item">
+              <span class="settings-item-text danger">アカウント削除</span>
+              <span class="settings-arrow">›</span>
+            </div>
+          </div>
+
+          <p class="text-center text-muted text-sm">バージョン 1.0.0</p>
+        </div>
+        <div class="screen-label">設定</div>
+      </div>
+    </div>
+
+    <!-- Visibility Settings -->
+    <div class="phone-frame">
+      <div class="screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <span>100%</span>
+        </div>
+        <div class="header">
+          <button class="header-btn">←</button>
+          <span class="header-title">閲覧範囲設定</span>
+          <span style="width: 36px;"></span>
+        </div>
+        <div class="content">
+          <p class="text-secondary mb-24">あなたの回答を見れる人</p>
+
+          <div class="radio-group">
+            <div class="radio-item selected">
+              <div class="radio-header">
+                <div class="radio-circle"></div>
+                <span class="radio-label">相互フォローのみ</span>
+              </div>
+              <p class="radio-desc">お互いにフォローしている人だけがあなたの回答を見れます</p>
+            </div>
+
+            <div class="radio-item">
+              <div class="radio-header">
+                <div class="radio-circle"></div>
+                <span class="radio-label">フォロワーまで</span>
+              </div>
+              <p class="radio-desc">あなたをフォローしている人も回答を見れます</p>
+            </div>
+          </div>
+        </div>
+        <div class="screen-label">閲覧範囲設定</div>
+      </div>
+    </div>
+
+    <!-- Share Profile / QR -->
+    <div class="phone-frame">
+      <div class="screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <span>100%</span>
+        </div>
+        <div class="header">
+          <button class="header-btn">×</button>
+          <span class="header-title">プロフィール共有</span>
+          <span style="width: 36px;"></span>
+        </div>
+        <div class="content" style="display: flex; flex-direction: column; align-items: center; padding-top: 40px;">
+          <div class="qr-placeholder">
+            [QRコード]
+          </div>
+
+          <p style="color: var(--text-primary); font-size: 18px; margin-bottom: 8px;">@yamada_taro</p>
+          <p class="text-secondary text-sm mb-24">このQRコードを読み取ってもらうとプロフィールが表示されます</p>
+
+          <button class="btn btn-secondary mb-16">リンクをコピー</button>
+          <button class="btn btn-primary">SNSでシェア</button>
+        </div>
+        <div class="screen-label">QRコード/共有</div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
