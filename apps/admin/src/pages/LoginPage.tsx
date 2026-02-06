@@ -1,29 +1,38 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuthStore } from '../stores/authStore'
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../stores/authStore';
 
 export default function LoginPage() {
-  const navigate = useNavigate()
-  const { login } = useAuthStore()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const navigate = useNavigate();
+  const { login } = useAuthStore();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setIsLoading(true)
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
 
     try {
-      await login(email, password)
-      navigate('/')
-    } catch (err) {
-      setError('ログインに失敗しました')
+      await login(email, password);
+      navigate('/');
+    } catch (err: any) {
+      const message = err.response?.data?.error || err.message || 'ログインに失敗しました';
+      if (message.includes('Incorrect') || message.includes('incorrect')) {
+        setError('メールアドレスまたはパスワードが正しくありません');
+      } else if (message.includes('not found') || message.includes('NotFound')) {
+        setError('ユーザーが見つかりません');
+      } else if (message.includes('not confirmed')) {
+        setError('メールアドレスが確認されていません');
+      } else {
+        setError(message);
+      }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100">
@@ -76,7 +85,11 @@ export default function LoginPage() {
             {isLoading ? 'ログイン中...' : 'ログイン'}
           </button>
         </form>
+
+        <p className="mt-6 text-center text-sm text-gray-500">
+          管理者アカウントでログインしてください
+        </p>
       </div>
     </div>
-  )
+  );
 }

@@ -26,6 +26,7 @@ const VALID_REASONS = [
   'hate_speech',
   'inappropriate_content',
   'impersonation',
+  'personal_info', // 個人情報の公開
   'other',
 ];
 

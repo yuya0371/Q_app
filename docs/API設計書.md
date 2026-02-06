@@ -1,5 +1,17 @@
 # API設計書 — Q.（仮）
 
+## 更新履歴
+
+| 日付 | 内容 |
+|---|---|
+| 2026-02-04 | 実装に合わせて更新: レスポンス形式からsuccessフィールドを削除、PATCH /users/meにusername/bio/isPrivateフィールド追加・displayName上限を50文字に変更、POST /users/me/profile-imageをpresigned URL方式に変更 |
+| 2026-02-05 | 実装との整合性確認・更新: HTTPメソッド修正（PATCH→PUT）、パスパラメータ修正、フォロー/フォロワー一覧のパス変更、リアクションエンドポイント修正、未実装エンドポイントをTODOマーク |
+| 2026-02-05 | GET /users/me/blocks を実装済みに更新 |
+| 2026-02-05 | GET /app/version を実装済みに更新 |
+| 2026-02-05 | 管理画面API（Phase 5）実装完了: 認証にisAdmin追加、全管理APIを /admin プレフィックスで実装、レスポンス形式を { items: [...] } に統一 |
+
+---
+
 ## 1. 概要
 
 - **形式**: REST API
@@ -24,7 +36,6 @@ Authorization: Bearer {access_token}
 **成功時:**
 ```json
 {
-  "success": true,
   "data": { ... }
 }
 ```
@@ -32,7 +43,6 @@ Authorization: Bearer {access_token}
 **エラー時:**
 ```json
 {
-  "success": false,
   "error": {
     "code": "ERROR_CODE",
     "message": "エラーメッセージ"
@@ -66,7 +76,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "items": [ ... ],
     "nextCursor": "xxx" // 次ページがある場合
@@ -79,86 +88,107 @@ Authorization: Bearer {access_token}
 ## 3. エンドポイント一覧
 
 ### 認証系（Auth）
-| メソッド | エンドポイント | 説明 | 認証 |
-|---|---|---|---|
-| POST | /auth/signup | ユーザー登録 | 不要 |
-| POST | /auth/confirm | メール確認（コード検証） | 不要 |
-| POST | /auth/resend-code | 確認コード再送信 | 不要 |
-| POST | /auth/login | ログイン | 不要 |
-| POST | /auth/logout | ログアウト | 必要 |
-| POST | /auth/refresh | トークンリフレッシュ | 不要 |
-| POST | /auth/forgot-password | パスワードリセット開始 | 不要 |
-| POST | /auth/reset-password | パスワードリセット実行 | 不要 |
-| POST | /auth/change-email | メールアドレス変更 | 必要 |
-| POST | /auth/confirm-email-change | メール変更確認 | 必要 |
+| メソッド | エンドポイント | 説明 | 認証 | 実装状況 |
+|---|---|---|---|---|
+| POST | /auth/signup | ユーザー登録 | 不要 | ✅ |
+| POST | /auth/confirm | メール確認（コード検証） | 不要 | ✅ |
+| POST | /auth/resend-code | 確認コード再送信 | 不要 | ✅ |
+| POST | /auth/login | ログイン | 不要 | ✅ |
+| POST | /auth/logout | ログアウト | 必要 | ❌ TODO |
+| POST | /auth/refresh | トークンリフレッシュ | 不要 | ✅ |
+| POST | /auth/forgot-password | パスワードリセット開始 | 不要 | ✅ |
+| POST | /auth/reset-password | パスワードリセット実行 | 不要 | ✅ |
+| POST | /auth/change-email | メールアドレス変更 | 必要 | ❌ TODO |
+| POST | /auth/confirm-email-change | メール変更確認 | 必要 | ❌ TODO |
 
 ### ユーザー系（Users）
-| メソッド | エンドポイント | 説明 | 認証 |
-|---|---|---|---|
-| GET | /users/me | 自分のプロフィール取得 | 必要 |
-| PATCH | /users/me | プロフィール更新 | 必要 |
-| POST | /users/me/app-id | アプリ内ID設定（初回のみ） | 必要 |
-| GET | /users/me/check-app-id | アプリ内ID重複チェック | 必要 |
-| POST | /users/me/profile-image | プロフィール画像アップロード | 必要 |
-| DELETE | /users/me/profile-image | プロフィール画像削除 | 必要 |
-| DELETE | /users/me | アカウント削除（退会） | 必要 |
-| GET | /users/:appId | 他ユーザーのプロフィール取得 | 必要 |
-| GET | /users/search | ユーザー検索（ID完全一致） | 必要 |
+| メソッド | エンドポイント | 説明 | 認証 | 実装状況 |
+|---|---|---|---|---|
+| GET | /users/me | 自分のプロフィール取得 | 必要 | ✅ ※1 |
+| PUT | /users/me | プロフィール更新 | 必要 | ✅ ※2 |
+| PUT | /users/me/app-id | アプリ内ID設定（初回のみ） | 必要 | ✅ ※3 |
+| GET | /users/me/check-app-id | アプリ内ID重複チェック | 必要 | ❌ TODO |
+| POST | /users/me/profile-image | プロフィール画像アップロードURL取得 | 必要 | ✅ |
+| DELETE | /users/me/profile-image | プロフィール画像削除 | 必要 | ✅ |
+| DELETE | /users/me | アカウント削除（退会） | 必要 | ✅ |
+| GET | /users/:appId | 他ユーザーのプロフィール取得 | 必要 | ✅ ※4 |
+| GET | /users/search | ユーザー検索（ID完全一致） | 必要 | ✅ |
+
+> **変更理由:**
+> - ※1: 実装では `/users/{userId}` で `userId=me` の場合に自身のプロフィールを返す
+> - ※2: PATCH → PUT に変更（API Gatewayの定義に合わせる）
+> - ※3: POST → PUT に変更（リソースの更新操作のため）
+> - ※4: パスパラメータは `{userId}` だが、実装内部でappIdとして検索する
 
 ### フォロー系（Follows）
-| メソッド | エンドポイント | 説明 | 認証 |
-|---|---|---|---|
-| POST | /users/:userId/follow | フォローする | 必要 |
-| DELETE | /users/:userId/follow | フォロー解除 | 必要 |
-| GET | /users/me/following | フォロー一覧 | 必要 |
-| GET | /users/me/followers | フォロワー一覧 | 必要 |
-| GET | /users/:userId/follow-status | フォロー状態確認 | 必要 |
+| メソッド | エンドポイント | 説明 | 認証 | 実装状況 |
+|---|---|---|---|---|
+| POST | /users/:userId/follow | フォローする | 必要 | ✅ |
+| DELETE | /users/:userId/follow | フォロー解除 | 必要 | ✅ |
+| GET | /users/:userId/following | フォロー一覧 | 必要 | ✅ ※5 |
+| GET | /users/:userId/followers | フォロワー一覧 | 必要 | ✅ ※5 |
+| GET | /users/:userId/follow-status | フォロー状態確認 | 必要 | ❌ TODO |
+
+> **変更理由:**
+> - ※5: `/users/me/following` → `/users/{userId}/following` に変更（自分以外のユーザーのフォロー一覧も取得可能にするため）。`userId=me` で自身の一覧を取得
 
 ### お題・回答系（Questions / Answers）
-| メソッド | エンドポイント | 説明 | 認証 |
-|---|---|---|---|
-| GET | /questions/today | 今日の質問を取得 | 必要 |
-| POST | /answers | 回答を投稿 | 必要 |
-| DELETE | /answers/:date | 回答を削除 | 必要 |
-| POST | /answers/:date/restore | 削除した回答を復活 | 必要 |
-| GET | /answers/timeline | タイムライン取得 | 必要 |
-| GET | /answers/me | 自分の過去回答一覧 | 必要 |
+| メソッド | エンドポイント | 説明 | 認証 | 実装状況 |
+|---|---|---|---|---|
+| GET | /questions/today | 今日の質問を取得 | 必要 | ✅ |
+| GET | /questions/past | 過去の質問一覧を取得 | 必要 | ✅ ※6 |
+| POST | /answers | 回答を投稿 | 必要 | ✅ |
+| DELETE | /answers/:answerId | 回答を削除 | 必要 | ✅ ※7 |
+| POST | /answers/:answerId/restore | 削除した回答を復活 | 必要 | ❌ TODO |
+| GET | /answers/timeline | タイムライン取得 | 必要 | ✅ |
+| GET | /users/:userId/answers | ユーザーの過去回答一覧 | 必要 | ✅ ※8 |
+
+> **変更理由:**
+> - ※6: 新規追加（過去の質問一覧取得機能）
+> - ※7: `/answers/:date` → `/answers/:answerId` に変更（回答IDで特定する方が一意性が保証される）
+> - ※8: `/answers/me` → `/users/{userId}/answers` に変更（他ユーザーの回答履歴も取得可能にするため）
 
 ### リアクション系（Reactions）
-| メソッド | エンドポイント | 説明 | 認証 |
-|---|---|---|---|
-| PUT | /answers/:answerId/reactions | リアクション付与/変更 | 必要 |
-| DELETE | /answers/:answerId/reactions | リアクション解除 | 必要 |
-| GET | /answers/:answerId/reactions | リアクション一覧取得 | 必要 |
+| メソッド | エンドポイント | 説明 | 認証 | 実装状況 |
+|---|---|---|---|---|
+| POST | /answers/:answerId/reaction | リアクション付与/変更 | 必要 | ✅ ※9 |
+| DELETE | /answers/:answerId/reaction | リアクション解除 | 必要 | ✅ ※9 |
+| GET | /answers/:answerId/reactions | リアクション一覧取得 | 必要 | ❌ TODO |
+
+> **変更理由:**
+> - ※9: PUT → POST に変更、パスを `reactions`（複数形）→ `reaction`（単数形）に変更（1ユーザー1回答に対して1リアクションのため単数形が適切）
 
 ### ブロック系（Blocks）
-| メソッド | エンドポイント | 説明 | 認証 |
-|---|---|---|---|
-| POST | /users/:userId/block | ブロックする | 必要 |
-| DELETE | /users/:userId/block | ブロック解除 | 必要 |
-| GET | /users/me/blocks | ブロック一覧 | 必要 |
+| メソッド | エンドポイント | 説明 | 認証 | 実装状況 |
+|---|---|---|---|---|
+| POST | /users/:userId/block | ブロックする | 必要 | ✅ |
+| DELETE | /users/:userId/block | ブロック解除 | 必要 | ✅ |
+| GET | /users/me/blocks | ブロック一覧 | 必要 | ✅ |
 
 ### 通報系（Reports）
-| メソッド | エンドポイント | 説明 | 認証 |
-|---|---|---|---|
-| POST | /reports | 通報を送信 | 必要 |
+| メソッド | エンドポイント | 説明 | 認証 | 実装状況 |
+|---|---|---|---|---|
+| POST | /reports | 通報を送信 | 必要 | ✅ |
 
 ### ユーザーお題系（Question Submissions）
-| メソッド | エンドポイント | 説明 | 認証 |
-|---|---|---|---|
-| POST | /questions/submit | お題を提出 | 必要 |
+| メソッド | エンドポイント | 説明 | 認証 | 実装状況 |
+|---|---|---|---|---|
+| POST | /questions/submit | お題を提出 | 必要 | ✅ |
 
 ### 設定系（Settings）
-| メソッド | エンドポイント | 説明 | 認証 |
-|---|---|---|---|
-| PATCH | /settings/visibility | 閲覧範囲設定 | 必要 |
-| POST | /settings/push-token | プッシュ通知トークン登録 | 必要 |
-| DELETE | /settings/push-token | プッシュ通知トークン削除 | 必要 |
+| メソッド | エンドポイント | 説明 | 認証 | 実装状況 |
+|---|---|---|---|---|
+| PATCH | /settings/visibility | 閲覧範囲設定 | 必要 | ❌ TODO |
+| POST | /push-tokens | プッシュ通知トークン登録 | 必要 | ✅ ※10 |
+| DELETE | /push-tokens | プッシュ通知トークン削除 | 必要 | ❌ TODO |
+
+> **変更理由:**
+> - ※10: `/settings/push-token` → `/push-tokens` に変更（独立したリソースとして扱う）
 
 ### アプリ系（App）
-| メソッド | エンドポイント | 説明 | 認証 |
-|---|---|---|---|
-| GET | /app/version | アプリバージョンチェック | 不要 |
+| メソッド | エンドポイント | 説明 | 認証 | 実装状況 |
+|---|---|---|---|---|
+| GET | /app/version | アプリバージョンチェック | 不要 | ✅ |
 
 ---
 
@@ -188,7 +218,6 @@ Authorization: Bearer {access_token}
 **レスポンス（成功）:**
 ```json
 {
-  "success": true,
   "data": {
     "userId": "uuid-xxx",
     "email": "user@example.com",
@@ -219,7 +248,6 @@ Authorization: Bearer {access_token}
 **レスポンス（成功）:**
 ```json
 {
-  "success": true,
   "data": {
     "confirmed": true
   }
@@ -246,7 +274,6 @@ Authorization: Bearer {access_token}
 **レスポンス（成功）:**
 ```json
 {
-  "success": true,
   "data": {
     "sent": true
   }
@@ -269,7 +296,6 @@ Authorization: Bearer {access_token}
 **レスポンス（成功）:**
 ```json
 {
-  "success": true,
   "data": {
     "accessToken": "xxx",
     "refreshToken": "xxx",
@@ -303,7 +329,6 @@ Authorization: Bearer {access_token}
 **レスポンス（成功）:**
 ```json
 {
-  "success": true,
   "data": {
     "loggedOut": true
   }
@@ -325,7 +350,6 @@ Authorization: Bearer {access_token}
 **レスポンス（成功）:**
 ```json
 {
-  "success": true,
   "data": {
     "accessToken": "xxx",
     "expiresIn": 3600
@@ -348,7 +372,6 @@ Authorization: Bearer {access_token}
 **レスポンス（成功）:**
 ```json
 {
-  "success": true,
   "data": {
     "sent": true
   }
@@ -372,7 +395,6 @@ Authorization: Bearer {access_token}
 **レスポンス（成功）:**
 ```json
 {
-  "success": true,
   "data": {
     "reset": true
   }
@@ -394,7 +416,6 @@ Authorization: Bearer {access_token}
 **レスポンス（成功）:**
 ```json
 {
-  "success": true,
   "data": {
     "sent": true
   }
@@ -416,7 +437,6 @@ Authorization: Bearer {access_token}
 **レスポンス（成功）:**
 ```json
 {
-  "success": true,
   "data": {
     "email": "newemail@example.com"
   }
@@ -433,7 +453,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "userId": "uuid-xxx",
     "appId": "yamada_taro",
@@ -457,21 +476,32 @@ Authorization: Bearer {access_token}
 **リクエスト:**
 ```json
 {
-  "displayName": "山田太郎（更新）"
+  "username": "yamada_taro",
+  "displayName": "山田太郎（更新）",
+  "bio": "よろしくお願いします",
+  "isPrivate": false
 }
 ```
 
 **バリデーション:**
-- displayName: 1〜20文字、絵文字不可、許可文字のみ
+- username: 3〜20文字、英数字とアンダースコアのみ、重複不可
+- displayName: 1〜50文字
+- bio: 200文字以下
+- isPrivate: boolean
 
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
-    "userId": "uuid-xxx",
-    "displayName": "山田太郎（更新）",
-    "updatedAt": "2026-02-04T12:00:00Z"
+    "message": "Profile updated successfully",
+    "user": {
+      "userId": "uuid-xxx",
+      "username": "yamada_taro",
+      "displayName": "山田太郎（更新）",
+      "bio": "よろしくお願いします",
+      "isPrivate": false,
+      "profileImageUrl": "https://..."
+    }
   }
 }
 ```
@@ -498,7 +528,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "appId": "yamada_taro"
   }
@@ -524,7 +553,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "appId": "yamada_taro",
     "available": true
@@ -535,24 +563,36 @@ Authorization: Bearer {access_token}
 ---
 
 #### POST /users/me/profile-image
-プロフィール画像をアップロード
+プロフィール画像アップロード用のpresigned URLを取得
 
-**リクエスト:** `multipart/form-data`
-- image: 画像ファイル（JPEG, PNG, HEIC）
+**リクエスト:**
+```json
+{
+  "contentType": "image/jpeg",
+  "fileName": "profile.jpg"
+}
+```
 
 **バリデーション:**
-- 最大5MB
-- JPEG, PNG, HEIC形式
+- contentType: `image/jpeg`, `image/png`, `image/webp` のいずれか
+- fileName: 必須
 
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
-    "profileImageUrl": "https://s3.../xxx.jpg"
+    "uploadUrl": "https://s3.amazonaws.com/...(presigned URL)",
+    "imageUrl": "https://bucket.s3.amazonaws.com/profiles/userId/timestamp.jpg",
+    "expiresIn": 300
   }
 }
 ```
+
+**備考:**
+- クライアントは `uploadUrl` に対してPUTリクエストで画像をアップロード
+- アップロード完了後、`imageUrl` がプロフィール画像URLとして使用される
+- presigned URLの有効期限は5分（300秒）
+- DBのprofileImageUrlは自動的に更新される
 
 ---
 
@@ -562,7 +602,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "deleted": true
   }
@@ -584,7 +623,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "deletionStarted": true
   }
@@ -606,7 +644,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "userId": "uuid-yyy",
     "appId": "tanaka_hanako",
@@ -639,7 +676,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "user": {
       "userId": "uuid-yyy",
@@ -668,7 +704,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "following": true
   }
@@ -690,7 +725,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "following": false
   }
@@ -709,7 +743,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "items": [
       {
@@ -740,7 +773,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "isFollowing": true,
     "isFollowedBy": true,
@@ -756,17 +788,33 @@ Authorization: Bearer {access_token}
 #### GET /questions/today
 今日の質問を取得
 
-**レスポンス:**
+**未公開時のレスポンス（公開時刻前）:**
 ```json
 {
-  "success": true,
   "data": {
     "date": "2026-02-04",
-    "questionId": "uuid-qqq",
-    "questionText": "最近ハマっていることは？",
-    "publishedAt": "2026-02-04T14:30:00Z",
+    "isPublished": false,
+    "question": null,
     "hasAnswered": false,
-    "myAnswer": null
+    "userAnswer": null
+  }
+}
+```
+
+**公開後のレスポンス（未回答）:**
+```json
+{
+  "data": {
+    "date": "2026-02-04",
+    "isPublished": true,
+    "publishedAt": "2026-02-04T05:30:00Z",
+    "question": {
+      "questionId": "uuid-qqq",
+      "text": "最近ハマっていることは？",
+      "category": null
+    },
+    "hasAnswered": false,
+    "userAnswer": null
   }
 }
 ```
@@ -774,26 +822,31 @@ Authorization: Bearer {access_token}
 **回答済みの場合:**
 ```json
 {
-  "success": true,
   "data": {
     "date": "2026-02-04",
-    "questionId": "uuid-qqq",
-    "questionText": "最近ハマっていることは？",
-    "publishedAt": "2026-02-04T14:30:00Z",
+    "isPublished": true,
+    "publishedAt": "2026-02-04T05:30:00Z",
+    "question": {
+      "questionId": "uuid-qqq",
+      "text": "最近ハマっていることは？",
+      "category": null
+    },
     "hasAnswered": true,
-    "myAnswer": {
+    "userAnswer": {
       "text": "読書にハマってます！",
       "isOnTime": true,
       "lateMinutes": 0,
       "isDeleted": false,
-      "createdAt": "2026-02-04T14:45:00Z"
+      "createdAt": "2026-02-04T05:45:00Z"
     }
   }
 }
 ```
 
 **備考:**
-- 公開時刻前は `questionText: null`、`isPublished: false`
+- 毎日0:00 JSTに当日の公開時刻（10:00〜21:00 JSTのランダム）が決定される
+- 公開時刻前は `isPublished: false`、`question: null`
+- 公開予定時刻はユーザーには公開しない（サプライズ要素）
 
 ---
 
@@ -815,7 +868,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "date": "2026-02-04",
     "text": "読書にハマってます！",
@@ -846,7 +898,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "deleted": true
   }
@@ -864,7 +915,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "restored": true,
     "answer": {
@@ -894,7 +944,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "date": "2026-02-04",
     "questionText": "最近ハマっていることは？",
@@ -937,10 +986,10 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "items": [
       {
+        "answerId": "answer-uuid-1",
         "date": "2026-02-04",
         "questionText": "最近ハマっていることは？",
         "text": "読書にハマってます！",
@@ -950,6 +999,7 @@ Authorization: Bearer {access_token}
         "createdAt": "2026-02-04T14:45:00Z"
       },
       {
+        "answerId": "answer-uuid-2",
         "date": "2026-02-03",
         "questionText": "好きな季節は？",
         "text": "春が好きです",
@@ -988,7 +1038,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "reactionType": "🔥"
   }
@@ -1003,7 +1052,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "removed": true
   }
@@ -1018,7 +1066,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "items": [
       {
@@ -1046,7 +1093,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "blocked": true
   }
@@ -1064,7 +1110,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "blocked": false
   }
@@ -1079,7 +1124,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "items": [
       {
@@ -1120,7 +1164,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "reportId": "uuid-rrr",
     "submitted": true
@@ -1152,7 +1195,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "submitted": true
   }
@@ -1186,7 +1228,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "visibilityType": "followers"
   }
@@ -1209,7 +1250,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "registered": true
   }
@@ -1231,7 +1271,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "deleted": true
   }
@@ -1252,7 +1291,6 @@ Authorization: Bearer {access_token}
 **レスポンス:**
 ```json
 {
-  "success": true,
   "data": {
     "currentVersion": "1.0.0",
     "minimumVersion": "1.0.0",
@@ -1268,28 +1306,72 @@ Authorization: Bearer {access_token}
 
 ## 5. 管理画面用API
 
-管理画面用のAPIは別途 `/admin/v1` プレフィックスで提供。
-認証は IAM + Cognito Identity を使用。
+管理画面用のAPIは `/admin` プレフィックスで提供（同一API Gateway内）。
+認証は Cognito ID Token を使用（モバイルアプリと同じ）。管理者権限チェックはフロントエンドで `isAdmin` フラグを確認。
 
 ### エンドポイント一覧
 
-| メソッド | エンドポイント | 説明 |
-|---|---|---|
-| GET | /admin/v1/questions | お題一覧 |
-| POST | /admin/v1/questions | 運営お題追加 |
-| PATCH | /admin/v1/questions/:id | お題編集/承認/却下 |
-| GET | /admin/v1/reports | 通報一覧 |
-| PATCH | /admin/v1/reports/:id | 通報ステータス更新 |
-| GET | /admin/v1/users | ユーザー一覧/検索 |
-| GET | /admin/v1/users/:id | ユーザー詳細 |
-| POST | /admin/v1/users/:id/ban | ユーザーBAN |
-| DELETE | /admin/v1/users/:id/ban | BAN解除 |
-| GET | /admin/v1/ng-words | NGワード一覧 |
-| POST | /admin/v1/ng-words | NGワード追加 |
-| DELETE | /admin/v1/ng-words/:word | NGワード削除 |
-| GET | /admin/v1/flagged-answers | flagged投稿一覧 |
+| メソッド | エンドポイント | 説明 | 実装状況 |
+|---|---|---|---|
+| GET | /admin/ng-words | NGワード一覧 | ✅ |
+| POST | /admin/ng-words | NGワード追加 | ✅ |
+| DELETE | /admin/ng-words/{word} | NGワード削除 | ✅ ※11 |
+| GET | /admin/questions | お題一覧 | ✅ |
+| POST | /admin/questions | 運営お題追加 | ✅ |
+| POST | /admin/daily-question | 今日のお題設定 | ✅ |
+| GET | /admin/reports | 通報一覧 | ✅ |
+| PUT | /admin/reports/{reportId} | 通報ステータス更新 | ✅ |
+| GET | /admin/submissions | ユーザー提案お題一覧 | ✅ |
+| PUT | /admin/submissions/{submissionId} | 提案お題の承認/却下 | ✅ |
+| GET | /admin/users | ユーザー一覧/検索 | ✅ |
+| POST | /admin/users/{userId}/ban | ユーザーBAN | ✅ |
+| DELETE | /admin/users/{userId}/ban | BAN解除 | ✅ |
+| GET | /admin/flagged-posts | フラグ付き投稿一覧 | ✅ |
+| PUT | /admin/flagged-posts/{answerId} | フラグ付き投稿の対応 | ✅ |
+| GET | /admin/logs | 監査ログ一覧 | ✅ |
 
-※ 詳細は管理画面開発時に別途設計
+> **変更理由:**
+> - ※11: パスパラメータはURLエンコードされたNGワード文字列（日本語対応）。バックエンドでdecodeURIComponentして処理
+
+### 共通レスポンス形式
+
+すべての一覧APIは以下の形式で返却：
+```json
+{
+  "data": {
+    "items": [...],
+    "nextCursor": "xxx" // ページネーション用（オプション）
+  }
+}
+```
+
+### ログインAPIのisAdmin追加
+
+`POST /auth/login` のレスポンスに `isAdmin` フラグを追加：
+```json
+{
+  "data": {
+    "user": {
+      "userId": "...",
+      "email": "...",
+      "isAdmin": true  // 管理者フラグ
+    },
+    "accessToken": "...",
+    "idToken": "...",
+    "refreshToken": "..."
+  }
+}
+```
+
+### 監査ログ（AdminLogs）
+
+管理者操作は自動的に監査ログに記録される。記録されるアクション：
+- `ADD_NG_WORD` / `DELETE_NG_WORD`
+- `CREATE_QUESTION` / `SET_DAILY_QUESTION`
+- `UPDATE_REPORT`
+- `REVIEW_SUBMISSION`
+- `BAN_USER` / `UNBAN_USER`
+- `REVIEW_FLAGGED_POST`
 
 ---
 

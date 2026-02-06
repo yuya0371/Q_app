@@ -64,9 +64,25 @@ export async function queryItems<T>(params: QueryCommandInput): Promise<T[]> {
   return (result.Items as T[]) || [];
 }
 
+export async function queryCount(params: Omit<QueryCommandInput, 'Select'>): Promise<number> {
+  const result = await docClient.send(new QueryCommand({
+    ...params,
+    Select: 'COUNT',
+  }));
+  return result.Count || 0;
+}
+
 export async function scanItems<T>(params: ScanCommandInput): Promise<T[]> {
   const result = await docClient.send(new ScanCommand(params));
   return (result.Items as T[]) || [];
+}
+
+export async function scanCount(params: Omit<ScanCommandInput, 'Select'>): Promise<number> {
+  const result = await docClient.send(new ScanCommand({
+    ...params,
+    Select: 'COUNT',
+  }));
+  return result.Count || 0;
 }
 
 export async function batchGetItems<T>(params: BatchGetCommandInput): Promise<T[]> {

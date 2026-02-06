@@ -10,7 +10,7 @@ interface User {
 
 interface Follow {
   followerId: string;
-  followingId: string;
+  followeeId: string;
 }
 
 interface Block {
@@ -23,8 +23,13 @@ interface Answer {
   userId: string;
   questionId: string;
   text: string;
+  displayText?: string;
   date: string;
+  isOnTime: boolean;
+  lateMinutes: number;
   reactionCount: number;
+  isDeleted?: boolean;
+  deletedAt?: string;
   createdAt: string;
 }
 
@@ -79,7 +84,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       if (targetUser.isPrivate) {
         const follows = await getItem<Follow>({
           TableName: TABLES.FOLLOWS,
-          Key: { followerId: authUser.userId, followingId: targetUserId },
+          Key: { followerId: authUser.userId, followeeId: targetUserId },
         });
 
         if (!follows) {
@@ -115,12 +120,18 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       });
     }
 
-    if (answers.length === 0) {
+    // 他人の履歴の場合は削除済み回答を除外、自分の履歴は削除済みも含める
+    const isOwnProfile = targetUserId === authUser.userId;
+    const filteredAnswers = isOwnProfile
+      ? answers
+      : answers.filter((a) => !a.isDeleted);
+
+    if (filteredAnswers.length === 0) {
       return success({ answers: [], hasMore: false });
     }
 
     // Get question details
-    const questionIds = [...new Set(answers.map((a) => a.questionId))];
+    const questionIds = [...new Set(filteredAnswers.map((a) => a.questionId))];
     const questions = await batchGetItems<Question>({
       RequestItems: {
         [TABLES.QUESTIONS]: {
@@ -132,7 +143,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     // Check if current user has reacted to each answer
     const reactionChecks = await Promise.all(
-      answers.map((a) =>
+      filteredAnswers.map((a) =>
         queryItems<Reaction>({
           TableName: TABLES.REACTIONS,
           IndexName: 'userId-answerId-index',
@@ -146,16 +157,20 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     );
 
     const hasReactedMap = new Map(
-      answers.map((a, i) => [a.answerId, reactionChecks[i].length > 0])
+      filteredAnswers.map((a, i) => [a.answerId, reactionChecks[i].length > 0])
     );
 
     // Build response
-    const result = answers.map((a) => {
+    const result = filteredAnswers.map((a) => {
       const question = questionMap.get(a.questionId);
       return {
         answerId: a.answerId,
-        text: a.text,
+        text: a.displayText || a.text, // マスク済みテキストを優先
         date: a.date,
+        isOnTime: a.isOnTime ?? true,
+        lateMinutes: a.lateMinutes ?? 0,
+        isDeleted: a.isDeleted ?? false,
+        deletedAt: a.deletedAt || null,
         reactionCount: a.reactionCount || 0,
         hasReacted: hasReactedMap.get(a.answerId) || false,
         createdAt: a.createdAt,
@@ -170,8 +185,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     return success({
       answers: result,
-      hasMore: answers.length === limit,
-      nextBefore: answers.length > 0 ? answers[answers.length - 1].date : null,
+      hasMore: filteredAnswers.length === limit,
+      nextBefore: filteredAnswers.length > 0 ? filteredAnswers[filteredAnswers.length - 1].date : null,
     });
   } catch (err) {
     console.error('Get user answers error:', err);

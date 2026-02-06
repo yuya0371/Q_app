@@ -16,13 +16,17 @@ import { useColorScheme } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '../../src/constants/Colors';
 import { useAuthStore } from '../../src/stores/authStore';
+import { useUpdateProfile, useUpdateProfileImage } from '../../src/hooks/api/useUsers';
+import { getErrorMessage } from '../../src/utils/errorHandler';
 
 export default function SetProfileScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = isDark ? Colors.dark : Colors.light;
 
-  const { updateUser, setOnboardingComplete } = useAuthStore();
+  const { setOnboardingComplete } = useAuthStore();
+  const updateProfile = useUpdateProfile();
+  const updateProfileImage = useUpdateProfileImage();
 
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
@@ -54,19 +58,24 @@ export default function SetProfileScreen() {
     setError('');
 
     try {
-      // TODO: Implement actual API call to save profile
-      // Including image upload to S3
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // プロフィール画像がある場合はアップロード
+      if (profileImage) {
+        await updateProfileImage.mutateAsync({ imageUri: profileImage });
+      }
 
-      updateUser({
-        displayName: displayName || undefined,
-        profileImageUrl: profileImage || undefined,
-      });
+      // displayNameまたはbioがある場合はプロフィール更新
+      if (displayName || bio) {
+        await updateProfile.mutateAsync({
+          displayName: displayName || undefined,
+          bio: bio || undefined,
+        });
+      }
+
       setOnboardingComplete();
-
       router.replace('/(tabs)');
     } catch (err) {
-      setError('設定に失敗しました。もう一度お試しください。');
+      console.error('Set profile error:', err);
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -114,10 +123,10 @@ export default function SetProfileScreen() {
             onChangeText={setDisplayName}
             placeholder="表示名"
             placeholderTextColor={colors.textMuted}
-            maxLength={20}
+            maxLength={50}
           />
           <Text style={styles.hint}>
-            1〜20文字（設定しない場合はアプリ内IDが表示されます）
+            1〜50文字（設定しない場合はアプリ内IDが表示されます）
           </Text>
         </View>
 
@@ -130,10 +139,10 @@ export default function SetProfileScreen() {
             placeholder="自己紹介を入力"
             placeholderTextColor={colors.textMuted}
             multiline
-            maxLength={150}
+            maxLength={200}
             textAlignVertical="top"
           />
-          <Text style={styles.hint}>{bio.length}/150</Text>
+          <Text style={styles.hint}>{bio.length}/200</Text>
         </View>
 
         <View style={styles.spacer} />

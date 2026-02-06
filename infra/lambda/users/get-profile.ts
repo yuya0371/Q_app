@@ -1,10 +1,11 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
 import { getAuthenticatedUser, getUserIdFromPath } from '../common/auth';
-import { getItem, queryItems, TABLES } from '../common/dynamodb';
+import { getItem, queryItems, queryCount, TABLES } from '../common/dynamodb';
 import { success, notFound, unauthorized, serverError } from '../common/response';
 
 interface User {
   userId: string;
+  appId?: string;
   email: string;
   username: string;
   displayName: string;
@@ -18,7 +19,7 @@ interface User {
 
 interface Follow {
   followerId: string;
-  followingId: string;
+  followeeId: string;
 }
 
 interface Block {
@@ -33,16 +34,33 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       return unauthorized();
     }
 
-    const targetUserId = getUserIdFromPath(event);
-    if (!targetUserId) {
+    const pathParam = event.pathParameters?.userId;
+    if (!pathParam) {
       return notFound('User not found');
     }
 
-    // Get user profile
-    const user = await getItem<User>({
-      TableName: TABLES.USERS,
-      Key: { userId: targetUserId },
-    });
+    let user: User | null = null;
+    let targetUserId: string;
+
+    if (pathParam === 'me') {
+      // Get own profile by userId
+      targetUserId = authUser.userId;
+      user = await getItem<User>({
+        TableName: TABLES.USERS,
+        Key: { userId: targetUserId },
+      });
+    } else {
+      // Get other user's profile by appId
+      const users = await queryItems<User>({
+        TableName: TABLES.USERS,
+        IndexName: 'GSI1_AppId',
+        KeyConditionExpression: 'appId = :appId',
+        ExpressionAttributeValues: { ':appId': pathParam },
+        Limit: 1,
+      });
+      user = users.length > 0 ? users[0] : null;
+      targetUserId = user?.userId || '';
+    }
 
     if (!user) {
       return notFound('User not found');
@@ -64,19 +82,17 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     const isOwnProfile = targetUserId === authUser.userId;
 
     // Get follow/follower counts
-    const [followers, following] = await Promise.all([
-      queryItems<Follow>({
+    const [followerCount, followingCount] = await Promise.all([
+      queryCount({
         TableName: TABLES.FOLLOWS,
-        IndexName: 'followingId-index',
-        KeyConditionExpression: 'followingId = :userId',
+        IndexName: 'GSI1_Followers',
+        KeyConditionExpression: 'followeeId = :userId',
         ExpressionAttributeValues: { ':userId': targetUserId },
-        Select: 'COUNT',
       }),
-      queryItems<Follow>({
+      queryCount({
         TableName: TABLES.FOLLOWS,
         KeyConditionExpression: 'followerId = :userId',
         ExpressionAttributeValues: { ':userId': targetUserId },
-        Select: 'COUNT',
       }),
     ]);
 
@@ -88,11 +104,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       const [followsTarget, targetFollows] = await Promise.all([
         getItem<Follow>({
           TableName: TABLES.FOLLOWS,
-          Key: { followerId: authUser.userId, followingId: targetUserId },
+          Key: { followerId: authUser.userId, followeeId: targetUserId },
         }),
         getItem<Follow>({
           TableName: TABLES.FOLLOWS,
-          Key: { followerId: targetUserId, followingId: authUser.userId },
+          Key: { followerId: targetUserId, followeeId: authUser.userId },
         }),
       ]);
 
@@ -103,13 +119,14 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     // Build response
     const profile: Record<string, unknown> = {
       userId: user.userId,
+      appId: user.appId || null,
       username: user.username,
       displayName: user.displayName,
       bio: user.bio || '',
       profileImageUrl: user.profileImageUrl || null,
       isPrivate: user.isPrivate,
-      followerCount: followers.length,
-      followingCount: following.length,
+      followerCount,
+      followingCount,
       createdAt: user.createdAt,
     };
 
@@ -122,7 +139,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       profile.isFollowedBy = isFollowedBy;
     }
 
-    return success({ user: profile });
+    return success(profile);
   } catch (err) {
     console.error('Get profile error:', err);
     return serverError('Failed to get profile');

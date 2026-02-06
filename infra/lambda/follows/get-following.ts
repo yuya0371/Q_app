@@ -5,6 +5,7 @@ import { success, notFound, unauthorized, forbidden, serverError } from '../comm
 
 interface User {
   userId: string;
+  appId?: string;
   username: string;
   displayName: string;
   profileImageUrl?: string;
@@ -13,7 +14,8 @@ interface User {
 
 interface Follow {
   followerId: string;
-  followingId: string;
+  followeeId: string;
+  createdAt?: string;
 }
 
 interface Block {
@@ -60,7 +62,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       if (targetUser.isPrivate) {
         const follows = await getItem<Follow>({
           TableName: TABLES.FOLLOWS,
-          Key: { followerId: authUser.userId, followingId: targetUserId },
+          Key: { followerId: authUser.userId, followeeId: targetUserId },
         });
 
         if (!follows) {
@@ -78,41 +80,32 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     });
 
     if (following.length === 0) {
-      return success({ users: [] });
+      return success({ items: [] });
     }
 
     // Get user details
-    const userIds = following.map((f) => f.followingId);
+    const userIds = following.map((f) => f.followeeId);
     const users = await batchGetItems<User>({
       RequestItems: {
         [TABLES.USERS]: {
           Keys: userIds.map((id) => ({ userId: id })),
-          ProjectionExpression: 'userId, username, displayName, profileImageUrl',
+          ProjectionExpression: 'userId, appId, username, displayName, profileImageUrl',
         },
       },
     });
 
-    // Check if current user follows each user
-    const followChecks = await Promise.all(
-      userIds.map((id) =>
-        getItem<Follow>({
-          TableName: TABLES.FOLLOWS,
-          Key: { followerId: authUser.userId, followingId: id },
-        })
-      )
-    );
-
-    const followingMap = new Map(userIds.map((id, i) => [id, !!followChecks[i]]));
+    // Create a map for follow timestamps
+    const followTimestampMap = new Map(following.map((f) => [f.followeeId, f.createdAt]));
 
     const result = users.map((u) => ({
       userId: u.userId,
-      username: u.username,
+      appId: u.appId || u.username,
       displayName: u.displayName,
       profileImageUrl: u.profileImageUrl || null,
-      isFollowing: followingMap.get(u.userId) || false,
+      followedAt: followTimestampMap.get(u.userId) || new Date().toISOString(),
     }));
 
-    return success({ users: result });
+    return success({ items: result });
   } catch (err) {
     console.error('Get following error:', err);
     return serverError('Failed to get following');

@@ -10,7 +10,7 @@ interface User {
 
 interface Follow {
   followerId: string;
-  followingId: string;
+  followeeId: string;
 }
 
 interface Block {
@@ -64,7 +64,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     // Check if already following
     const existingFollow = await getItem<Follow>({
       TableName: TABLES.FOLLOWS,
-      Key: { followerId: authUser.userId, followingId: targetUserId },
+      Key: { followerId: authUser.userId, followeeId: targetUserId },
     });
 
     if (existingFollow) {
@@ -78,7 +78,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       TableName: TABLES.FOLLOWS,
       Item: {
         followerId: authUser.userId,
-        followingId: targetUserId,
+        followeeId: targetUserId,
         createdAt: timestamp,
       },
     });

@@ -42,6 +42,7 @@ export class ApiStack extends cdk.Stack {
       DAILY_QUESTIONS_TABLE: tables.dailyQuestions.tableName,
       USER_QUESTION_SUBMISSIONS_TABLE: tables.userQuestionSubmissions.tableName,
       PUSH_TOKENS_TABLE: tables.pushTokens.tableName,
+      ADMIN_LOGS_TABLE: tables.adminLogs.tableName,
       PROFILE_IMAGE_BUCKET: profileImageBucket.bucketName,
       DELETE_USER_STATE_MACHINE_ARN: deleteUserStateMachineArn,
     };
@@ -136,6 +137,15 @@ export class ApiStack extends cdk.Stack {
     });
     tables.users.grantReadWriteData(updateProfileFn);
 
+    // Set App ID
+    const setAppIdFn = new NodejsFunction(this, 'SetAppIdFunction', {
+      ...nodeJsFunctionProps,
+      entry: path.join(lambdaDir, 'users/set-app-id.ts'),
+      handler: 'handler',
+      functionName: `${prefix}-users-set-app-id`,
+    });
+    tables.users.grantReadWriteData(setAppIdFn);
+
     // Search Users
     const searchUsersFn = new NodejsFunction(this, 'SearchUsersFunction', {
       ...nodeJsFunctionProps,
@@ -155,6 +165,16 @@ export class ApiStack extends cdk.Stack {
     });
     tables.users.grantReadWriteData(getProfileImageUploadUrlFn);
     profileImageBucket.grantPut(getProfileImageUploadUrlFn);
+
+    // Delete Profile Image
+    const deleteProfileImageFn = new NodejsFunction(this, 'DeleteProfileImageFunction', {
+      ...nodeJsFunctionProps,
+      entry: path.join(lambdaDir, 'users/delete-profile-image.ts'),
+      handler: 'handler',
+      functionName: `${prefix}-users-delete-profile-image`,
+    });
+    tables.users.grantReadWriteData(deleteProfileImageFn);
+    profileImageBucket.grantDelete(deleteProfileImageFn);
 
     // Delete Account
     const deleteAccountFn = new NodejsFunction(this, 'DeleteAccountFunction', {
@@ -213,6 +233,15 @@ export class ApiStack extends cdk.Stack {
     });
     tables.answers.grantReadWriteData(deleteAnswerFn);
 
+    // Restore Answer
+    const restoreAnswerFn = new NodejsFunction(this, 'RestoreAnswerFunction', {
+      ...nodeJsFunctionProps,
+      entry: path.join(lambdaDir, 'answers/restore-answer.ts'),
+      handler: 'handler',
+      functionName: `${prefix}-answers-restore`,
+    });
+    tables.answers.grantReadWriteData(restoreAnswerFn);
+
     // Get Timeline
     const getTimelineFn = new NodejsFunction(this, 'GetTimelineFunction', {
       ...nodeJsFunctionProps,
@@ -241,6 +270,16 @@ export class ApiStack extends cdk.Stack {
     tables.answers.grantReadData(getUserAnswersFn);
     tables.questions.grantReadData(getUserAnswersFn);
     tables.reactions.grantReadData(getUserAnswersFn);
+
+    // Get My Answers
+    const getMyAnswersFn = new NodejsFunction(this, 'GetMyAnswersFunction', {
+      ...nodeJsFunctionProps,
+      entry: path.join(lambdaDir, 'answers/get-my-answers.ts'),
+      handler: 'handler',
+      functionName: `${prefix}-answers-me`,
+    });
+    tables.answers.grantReadData(getMyAnswersFn);
+    tables.questions.grantReadData(getMyAnswersFn);
 
     // ====== REACTION LAMBDA FUNCTIONS ======
 
@@ -331,6 +370,16 @@ export class ApiStack extends cdk.Stack {
     });
     tables.blocks.grantReadWriteData(unblockUserFn);
 
+    // Get Blocks (blocked users list)
+    const getBlocksFn = new NodejsFunction(this, 'GetBlocksFunction', {
+      ...nodeJsFunctionProps,
+      entry: path.join(lambdaDir, 'blocks/get-blocks.ts'),
+      handler: 'handler',
+      functionName: `${prefix}-blocks-list`,
+    });
+    tables.blocks.grantReadData(getBlocksFn);
+    tables.users.grantReadData(getBlocksFn);
+
     // ====== REPORT LAMBDA FUNCTIONS ======
 
     // Create Report
@@ -367,6 +416,20 @@ export class ApiStack extends cdk.Stack {
     tables.userQuestionSubmissions.grantReadWriteData(submitQuestionFn);
 
     // ====== ADMIN LAMBDA FUNCTIONS ======
+
+    // Dashboard Stats
+    const getDashboardStatsFn = new NodejsFunction(this, 'GetDashboardStatsFunction', {
+      ...nodeJsFunctionProps,
+      entry: path.join(lambdaDir, 'admin/get-dashboard-stats.ts'),
+      handler: 'handler',
+      functionName: `${prefix}-admin-dashboard-stats`,
+    });
+    tables.users.grantReadData(getDashboardStatsFn);
+    tables.answers.grantReadData(getDashboardStatsFn);
+    tables.reports.grantReadData(getDashboardStatsFn);
+    tables.userQuestionSubmissions.grantReadData(getDashboardStatsFn);
+    tables.dailyQuestions.grantReadData(getDashboardStatsFn);
+    tables.questions.grantReadData(getDashboardStatsFn);
 
     // List NG Words
     const listNgWordsFn = new NodejsFunction(this, 'ListNgWordsFunction', {
@@ -462,6 +525,82 @@ export class ApiStack extends cdk.Stack {
     });
     tables.questions.grantReadData(listQuestionsFn);
 
+    // List Users (Admin)
+    const listUsersFn = new NodejsFunction(this, 'ListUsersFunction', {
+      ...nodeJsFunctionProps,
+      entry: path.join(lambdaDir, 'admin/list-users.ts'),
+      handler: 'handler',
+      functionName: `${prefix}-admin-list-users`,
+    });
+    tables.users.grantReadData(listUsersFn);
+
+    // Ban User (Admin)
+    const banUserFn = new NodejsFunction(this, 'BanUserFunction', {
+      ...nodeJsFunctionProps,
+      entry: path.join(lambdaDir, 'admin/ban-user.ts'),
+      handler: 'handler',
+      functionName: `${prefix}-admin-ban-user`,
+    });
+    tables.users.grantReadWriteData(banUserFn);
+
+    // Unban User (Admin)
+    const unbanUserFn = new NodejsFunction(this, 'UnbanUserFunction', {
+      ...nodeJsFunctionProps,
+      entry: path.join(lambdaDir, 'admin/unban-user.ts'),
+      handler: 'handler',
+      functionName: `${prefix}-admin-unban-user`,
+    });
+    tables.users.grantReadWriteData(unbanUserFn);
+
+    // List Flagged Posts (Admin)
+    const listFlaggedPostsFn = new NodejsFunction(this, 'ListFlaggedPostsFunction', {
+      ...nodeJsFunctionProps,
+      entry: path.join(lambdaDir, 'admin/list-flagged-posts.ts'),
+      handler: 'handler',
+      functionName: `${prefix}-admin-list-flagged-posts`,
+    });
+    tables.answers.grantReadData(listFlaggedPostsFn);
+    tables.users.grantReadData(listFlaggedPostsFn);
+
+    // Review Flagged Post (Admin)
+    const reviewFlaggedPostFn = new NodejsFunction(this, 'ReviewFlaggedPostFunction', {
+      ...nodeJsFunctionProps,
+      entry: path.join(lambdaDir, 'admin/review-flagged-post.ts'),
+      handler: 'handler',
+      functionName: `${prefix}-admin-review-flagged-post`,
+    });
+    tables.answers.grantReadWriteData(reviewFlaggedPostFn);
+
+    // List Admin Logs (Admin)
+    const listAdminLogsFn = new NodejsFunction(this, 'ListAdminLogsFunction', {
+      ...nodeJsFunctionProps,
+      entry: path.join(lambdaDir, 'admin/list-admin-logs.ts'),
+      handler: 'handler',
+      functionName: `${prefix}-admin-list-logs`,
+    });
+    tables.adminLogs.grantReadData(listAdminLogsFn);
+
+    // Grant admin logs write access to admin functions
+    tables.adminLogs.grantWriteData(addNgWordFn);
+    tables.adminLogs.grantWriteData(deleteNgWordFn);
+    tables.adminLogs.grantWriteData(createQuestionFn);
+    tables.adminLogs.grantWriteData(setDailyQuestionFn);
+    tables.adminLogs.grantWriteData(updateReportFn);
+    tables.adminLogs.grantWriteData(reviewQuestionSubmissionFn);
+    tables.adminLogs.grantWriteData(banUserFn);
+    tables.adminLogs.grantWriteData(unbanUserFn);
+    tables.adminLogs.grantWriteData(reviewFlaggedPostFn);
+
+    // ====== APP LAMBDA FUNCTIONS ======
+
+    // Check Version (public - no auth required)
+    const checkVersionFn = new NodejsFunction(this, 'CheckVersionFunction', {
+      ...nodeJsFunctionProps,
+      entry: path.join(lambdaDir, 'app/check-version.ts'),
+      handler: 'handler',
+      functionName: `${prefix}-app-check-version`,
+    });
+
     // REST API
     this.api = new apigateway.RestApi(this, 'Api', {
       restApiName: `${prefix}-api`,
@@ -532,15 +671,8 @@ export class ApiStack extends cdk.Stack {
       authorizerOptions
     );
 
-    // GET /users/{userId} - Get user profile (use 'me' for self)
-    const userByIdResource = usersResource.addResource('{userId}');
-    userByIdResource.addMethod(
-      'GET',
-      new apigateway.LambdaIntegration(getProfileFn),
-      authorizerOptions
-    );
-
     // PUT /users/me - Update own profile
+    // NOTE: 固定パス 'me' は変数パス '{userId}' より先に定義する必要がある
     const meResource = usersResource.addResource('me');
     meResource.addMethod(
       'PUT',
@@ -556,10 +688,41 @@ export class ApiStack extends cdk.Stack {
       authorizerOptions
     );
 
+    // DELETE /users/me/profile-image - Delete profile image
+    profileImageResource.addMethod(
+      'DELETE',
+      new apigateway.LambdaIntegration(deleteProfileImageFn),
+      authorizerOptions
+    );
+
+    // PUT /users/me/app-id - Set app ID (one time only)
+    const appIdResource = meResource.addResource('app-id');
+    appIdResource.addMethod(
+      'PUT',
+      new apigateway.LambdaIntegration(setAppIdFn),
+      authorizerOptions
+    );
+
     // DELETE /users/me - Delete account
     meResource.addMethod(
       'DELETE',
       new apigateway.LambdaIntegration(deleteAccountFn),
+      authorizerOptions
+    );
+
+    // GET /users/me/blocks - Get blocked users list
+    const blocksResource = meResource.addResource('blocks');
+    blocksResource.addMethod(
+      'GET',
+      new apigateway.LambdaIntegration(getBlocksFn),
+      authorizerOptions
+    );
+
+    // GET /users/{userId} - Get user profile (use 'me' for self)
+    const userByIdResource = usersResource.addResource('{userId}');
+    userByIdResource.addMethod(
+      'GET',
+      new apigateway.LambdaIntegration(getProfileFn),
       authorizerOptions
     );
 
@@ -654,6 +817,14 @@ export class ApiStack extends cdk.Stack {
       authorizerOptions
     );
 
+    // GET /answers/me - Get my answers
+    const myAnswersResource = answersResource.addResource('me');
+    myAnswersResource.addMethod(
+      'GET',
+      new apigateway.LambdaIntegration(getMyAnswersFn),
+      authorizerOptions
+    );
+
     // DELETE /answers/{answerId} - Delete answer
     const answerByIdResource = answersResource.addResource('{answerId}');
     answerByIdResource.addMethod(
@@ -674,6 +845,14 @@ export class ApiStack extends cdk.Stack {
     reactionResource.addMethod(
       'DELETE',
       new apigateway.LambdaIntegration(removeReactionFn),
+      authorizerOptions
+    );
+
+    // POST /answers/{answerId}/restore - Restore deleted answer
+    const restoreResource = answerByIdResource.addResource('restore');
+    restoreResource.addMethod(
+      'POST',
+      new apigateway.LambdaIntegration(restoreAnswerFn),
       authorizerOptions
     );
 
@@ -708,6 +887,14 @@ export class ApiStack extends cdk.Stack {
 
     // Admin routes (protected - should be restricted to admin users in production)
     const adminResource = this.api.root.addResource('admin');
+
+    // Dashboard Stats
+    const dashboardResource = adminResource.addResource('dashboard');
+    dashboardResource.addMethod(
+      'GET',
+      new apigateway.LambdaIntegration(getDashboardStatsFn),
+      authorizerOptions
+    );
 
     // NG Words
     const ngWordsResource = adminResource.addResource('ng-words');
@@ -775,6 +962,58 @@ export class ApiStack extends cdk.Stack {
       'PUT',
       new apigateway.LambdaIntegration(reviewQuestionSubmissionFn),
       authorizerOptions
+    );
+
+    // Users (Admin)
+    const adminUsersResource = adminResource.addResource('users');
+    adminUsersResource.addMethod(
+      'GET',
+      new apigateway.LambdaIntegration(listUsersFn),
+      authorizerOptions
+    );
+    const adminUserByIdResource = adminUsersResource.addResource('{userId}');
+    const banResource = adminUserByIdResource.addResource('ban');
+    banResource.addMethod(
+      'POST',
+      new apigateway.LambdaIntegration(banUserFn),
+      authorizerOptions
+    );
+    banResource.addMethod(
+      'DELETE',
+      new apigateway.LambdaIntegration(unbanUserFn),
+      authorizerOptions
+    );
+
+    // Flagged Posts (Admin)
+    const flaggedPostsResource = adminResource.addResource('flagged-posts');
+    flaggedPostsResource.addMethod(
+      'GET',
+      new apigateway.LambdaIntegration(listFlaggedPostsFn),
+      authorizerOptions
+    );
+    const flaggedPostByIdResource = flaggedPostsResource.addResource('{answerId}');
+    flaggedPostByIdResource.addMethod(
+      'PUT',
+      new apigateway.LambdaIntegration(reviewFlaggedPostFn),
+      authorizerOptions
+    );
+
+    // Admin Logs (Admin)
+    const adminLogsResource = adminResource.addResource('logs');
+    adminLogsResource.addMethod(
+      'GET',
+      new apigateway.LambdaIntegration(listAdminLogsFn),
+      authorizerOptions
+    );
+
+    // App routes (public - no auth required)
+    const appResource = this.api.root.addResource('app');
+
+    // GET /app/version - Check app version (for force update)
+    const versionResource = appResource.addResource('version');
+    versionResource.addMethod(
+      'GET',
+      new apigateway.LambdaIntegration(checkVersionFn)
     );
 
     // Outputs

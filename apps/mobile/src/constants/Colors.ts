@@ -12,6 +12,7 @@ export const Colors = {
     accentHover: '#7C3AED',
     danger: '#EF4444',
     success: '#10B981',
+    warning: '#F59E0B',
     card: '#FFFFFF',
   },
   // Dark mode
@@ -27,6 +28,7 @@ export const Colors = {
     accentHover: '#7C3AED',
     danger: '#EF4444',
     success: '#10B981',
+    warning: '#F59E0B',
     card: '#2A2A2A',
   },
 };
@@ -44,5 +46,6 @@ export interface ThemeColors {
   accentHover: string;
   danger: string;
   success: string;
+  warning: string;
   card: string;
 }

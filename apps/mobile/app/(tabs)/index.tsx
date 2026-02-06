@@ -8,76 +8,140 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { Colors } from '../../src/constants/Colors';
-
-// Mock data for today's question
-const mockQuestion = {
-  id: 'q1',
-  text: '最近一番嬉しかったことは何ですか？',
-  publishedAt: new Date().toISOString(),
-};
-
-// Mock data for timeline
-const mockAnswers = [
-  {
-    id: 'a1',
-    userId: 'user1',
-    appId: 'tanaka',
-    displayName: '田中太郎',
-    answerText: '友達と久しぶりに会えたこと！',
-    createdAt: '2024-01-15T10:30:00Z',
-    reactions: { '❤️': 5, '🔥': 2 },
-  },
-  {
-    id: 'a2',
-    userId: 'user2',
-    appId: 'yamada',
-    displayName: '山田花子',
-    answerText: '新しいカフェで美味しいコーヒーを見つけたこと。お店の雰囲気も最高だった。',
-    createdAt: '2024-01-15T09:15:00Z',
-    reactions: { '❤️': 3, '😂': 1 },
-  },
-];
+import { useTodayQuestion, questionKeys } from '../../src/hooks/api/useQuestions';
+import { useCreateAnswer, useTimeline, useAddReaction, useRemoveReaction, answerKeys } from '../../src/hooks/api/useAnswers';
+import { useQueryClient } from '@tanstack/react-query';
+import { getErrorMessage } from '../../src/utils/errorHandler';
+import { TimelineItem } from '../../src/components/TimelineItem';
+import { SubmitQuestionModal } from '../../src/components/SubmitQuestionModal';
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = isDark ? Colors.dark : Colors.light;
+  const queryClient = useQueryClient();
+
+  const {
+    data: todayData,
+    isLoading: isLoadingQuestion,
+    error: questionError,
+    refetch: refetchQuestion,
+  } = useTodayQuestion();
 
   const [answer, setAnswer] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [hasAnswered, setHasAnswered] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+
+  const createAnswerMutation = useCreateAnswer();
+  const addReactionMutation = useAddReaction();
+  const removeReactionMutation = useRemoveReaction();
+
+  const hasAnswered = todayData?.hasAnswered ?? false;
+
+  // タイムラインデータ取得（回答済みの場合のみ）
+  const {
+    data: timelineData,
+    isLoading: isLoadingTimeline,
+    refetch: refetchTimeline,
+  } = useTimeline(todayData?.date ?? '');
 
   const handleSubmit = async () => {
-    if (!answer.trim()) return;
+    if (!answer.trim() || !todayData?.question) return;
 
-    setIsSubmitting(true);
     try {
-      // TODO: Implement actual API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setHasAnswered(true);
+      await createAnswerMutation.mutateAsync({
+        questionId: todayData.question.questionId,
+        content: answer.trim(),
+      });
+      // 回答投稿後、今日の質問を再取得
+      queryClient.invalidateQueries({ queryKey: questionKeys.today() });
       setAnswer('');
     } catch (err) {
-      // Handle error
-    } finally {
-      setIsSubmitting(false);
+      const errorMessage = getErrorMessage(err);
+      // ALREADY_ANSWEREDエラーの場合は特別なメッセージ
+      if (errorMessage.includes('ALREADY_ANSWERED') || errorMessage.includes('すでに回答')) {
+        Alert.alert('投稿できません', '今日はすでに回答済みです');
+      } else {
+        Alert.alert('エラー', errorMessage);
+      }
     }
   };
+
+  const isSubmitting = createAnswerMutation.isPending;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      // TODO: Refresh data
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await Promise.all([
+        refetchQuestion(),
+        hasAnswered ? refetchTimeline() : Promise.resolve(),
+      ]);
     } finally {
       setIsRefreshing(false);
     }
   };
 
+  const handleReactionChange = async (answerId: string, reaction: string | null) => {
+    try {
+      if (reaction) {
+        await addReactionMutation.mutateAsync({ answerId, reactionType: reaction });
+      } else {
+        await removeReactionMutation.mutateAsync(answerId);
+      }
+      // タイムラインキャッシュを更新
+      if (todayData?.date) {
+        queryClient.invalidateQueries({ queryKey: answerKeys.timeline(todayData.date) });
+      }
+    } catch (err) {
+      Alert.alert('エラー', getErrorMessage(err));
+    }
+  };
+
   const styles = createStyles(colors);
+
+  // ローディング中
+  if (isLoadingQuestion) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color={colors.accent} />
+        <Text style={styles.loadingText}>読み込み中...</Text>
+      </View>
+    );
+  }
+
+  // エラー時
+  if (questionError) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <Text style={styles.errorText}>
+          {getErrorMessage(questionError)}
+        </Text>
+        <TouchableOpacity style={styles.retryButton} onPress={() => refetchQuestion()}>
+          <Text style={styles.retryButtonText}>再試行</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // 今日の質問が未公開または存在しない場合
+  if (!todayData?.question) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <Text style={styles.noQuestionIcon}>⏰</Text>
+        <Text style={styles.noQuestionText}>今日の質問はまだ届いていません</Text>
+        <Text style={styles.noQuestionSubtext}>
+          通知をオンにして待っていてね
+        </Text>
+        <TouchableOpacity style={styles.retryButton} onPress={() => refetchQuestion()}>
+          <Text style={styles.retryButtonText}>更新</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <ScrollView
@@ -93,8 +157,11 @@ export default function HomeScreen() {
     >
       {/* Today's Question Card */}
       <View style={styles.questionCard}>
-        <Text style={styles.questionLabel}>今日の質問</Text>
-        <Text style={styles.questionText}>{mockQuestion.text}</Text>
+        <View style={styles.questionHeader}>
+          <Text style={styles.questionLabel}>今日の質問</Text>
+          <Text style={styles.questionDate}>{todayData.date}</Text>
+        </View>
+        <Text style={styles.questionText}>{todayData.question.text}</Text>
       </View>
 
       {/* Answer Input (show if not answered) */}
@@ -107,11 +174,11 @@ export default function HomeScreen() {
             placeholder="あなたの回答を入力..."
             placeholderTextColor={colors.textMuted}
             multiline
-            maxLength={300}
+            maxLength={80}
             textAlignVertical="top"
           />
           <View style={styles.answerFooter}>
-            <Text style={styles.charCount}>{answer.length}/300</Text>
+            <Text style={styles.charCount}>{answer.length}/80</Text>
             <TouchableOpacity
               style={[
                 styles.submitButton,
@@ -129,46 +196,65 @@ export default function HomeScreen() {
           </View>
         </View>
       ) : (
-        <View style={styles.answeredBadge}>
-          <Text style={styles.answeredText}>✓ 回答済み</Text>
-          <TouchableOpacity>
+        <View style={styles.answeredSection}>
+          <View style={styles.answeredBadge}>
+            <Text style={styles.answeredText}>✓ 回答済み</Text>
+          </View>
+          {/* 自分の回答を表示 */}
+          {todayData.userAnswer && (
+            <View style={styles.myAnswerCard}>
+              <Text style={styles.myAnswerLabel}>あなたの回答</Text>
+              <Text style={styles.myAnswerText}>{todayData.userAnswer.text}</Text>
+            </View>
+          )}
+          <TouchableOpacity style={styles.suggestButton} onPress={() => setShowSubmitModal(true)}>
             <Text style={styles.suggestLink}>お題を提案する</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {/* Timeline */}
-      <View style={styles.timeline}>
-        <Text style={styles.timelineTitle}>みんなの回答</Text>
-        {mockAnswers.map((item) => (
-          <View key={item.id} style={styles.answerCard}>
-            <View style={styles.answerHeader}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {item.displayName.charAt(0)}
-                </Text>
-              </View>
-              <View style={styles.userInfo}>
-                <Text style={styles.displayName}>{item.displayName}</Text>
-                <Text style={styles.appId}>@{item.appId}</Text>
-              </View>
+      {hasAnswered && (
+        <View style={styles.timeline}>
+          <Text style={styles.timelineTitle}>みんなの回答</Text>
+          {isLoadingTimeline ? (
+            <View style={styles.timelinePlaceholder}>
+              <ActivityIndicator size="small" color={colors.accent} />
+              <Text style={styles.placeholderText}>読み込み中...</Text>
             </View>
-            <Text style={styles.answerContent}>{item.answerText}</Text>
-            <View style={styles.reactions}>
-              {Object.entries(item.reactions).map(([emoji, count]) => (
-                <TouchableOpacity key={emoji} style={styles.reactionButton}>
-                  <Text style={styles.reactionText}>
-                    {emoji} {count}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-              <TouchableOpacity style={styles.addReactionButton}>
-                <Text style={styles.addReactionText}>+</Text>
-              </TouchableOpacity>
+          ) : timelineData?.items && timelineData.items.length > 0 ? (
+            timelineData.items.map((item) => (
+              <TimelineItem
+                key={item.answerId}
+                item={item}
+                onReactionChange={handleReactionChange}
+              />
+            ))
+          ) : (
+            <View style={styles.timelinePlaceholder}>
+              <Text style={styles.placeholderText}>
+                まだ回答がありません
+              </Text>
             </View>
-          </View>
-        ))}
-      </View>
+          )}
+        </View>
+      )}
+
+      {/* 未回答時のロック表示 */}
+      {!hasAnswered && (
+        <View style={styles.lockedSection}>
+          <Text style={styles.lockedIcon}>🔒</Text>
+          <Text style={styles.lockedText}>
+            回答するとみんなの回答が見れるようになります
+          </Text>
+        </View>
+      )}
+
+      {/* お題提案モーダル */}
+      <SubmitQuestionModal
+        visible={showSubmitModal}
+        onClose={() => setShowSubmitModal(false)}
+      />
     </ScrollView>
   );
 }
@@ -179,8 +265,51 @@ const createStyles = (colors: typeof Colors.light) =>
       flex: 1,
       backgroundColor: colors.background,
     },
+    centerContent: {
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 24,
+    },
     content: {
       padding: 16,
+    },
+    loadingText: {
+      marginTop: 12,
+      fontSize: 14,
+      color: colors.textMuted,
+    },
+    errorText: {
+      fontSize: 16,
+      color: colors.danger,
+      textAlign: 'center',
+      marginBottom: 16,
+    },
+    retryButton: {
+      backgroundColor: colors.accent,
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 8,
+    },
+    retryButtonText: {
+      color: '#FFFFFF',
+      fontWeight: '600',
+    },
+    noQuestionIcon: {
+      fontSize: 48,
+      marginBottom: 16,
+    },
+    noQuestionText: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 8,
+      textAlign: 'center',
+    },
+    noQuestionSubtext: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginBottom: 24,
+      textAlign: 'center',
     },
     questionCard: {
       backgroundColor: colors.card,
@@ -190,11 +319,20 @@ const createStyles = (colors: typeof Colors.light) =>
       borderWidth: 1,
       borderColor: colors.border,
     },
+    questionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
     questionLabel: {
       fontSize: 12,
       color: colors.accent,
       fontWeight: '600',
-      marginBottom: 8,
+    },
+    questionDate: {
+      fontSize: 12,
+      color: colors.textMuted,
     },
     questionText: {
       fontSize: 20,
@@ -239,22 +377,47 @@ const createStyles = (colors: typeof Colors.light) =>
       color: '#FFFFFF',
       fontWeight: '600',
     },
+    answeredSection: {
+      marginBottom: 24,
+    },
     answeredBadge: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
       backgroundColor: colors.backgroundSecondary,
       borderRadius: 12,
       padding: 16,
-      marginBottom: 24,
+      marginBottom: 12,
     },
     answeredText: {
       color: colors.success,
       fontWeight: '600',
     },
+    myAnswerCard: {
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    myAnswerLabel: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginBottom: 8,
+    },
+    myAnswerText: {
+      fontSize: 16,
+      color: colors.text,
+      lineHeight: 24,
+    },
+    suggestButton: {
+      alignItems: 'center',
+      padding: 12,
+    },
     suggestLink: {
       color: colors.accent,
       fontSize: 14,
+      fontWeight: '500',
     },
     timeline: {
       marginBottom: 24,
@@ -264,6 +427,32 @@ const createStyles = (colors: typeof Colors.light) =>
       fontWeight: '600',
       color: colors.text,
       marginBottom: 16,
+    },
+    timelinePlaceholder: {
+      backgroundColor: colors.backgroundSecondary,
+      borderRadius: 12,
+      padding: 24,
+      alignItems: 'center',
+    },
+    placeholderText: {
+      fontSize: 14,
+      color: colors.textMuted,
+    },
+    lockedSection: {
+      alignItems: 'center',
+      padding: 32,
+      backgroundColor: colors.backgroundSecondary,
+      borderRadius: 16,
+      marginBottom: 24,
+    },
+    lockedIcon: {
+      fontSize: 32,
+      marginBottom: 12,
+    },
+    lockedText: {
+      fontSize: 14,
+      color: colors.textMuted,
+      textAlign: 'center',
     },
     answerCard: {
       backgroundColor: colors.card,

@@ -10,6 +10,7 @@ const navigation = [
   { name: 'ユーザー管理', href: '/users', icon: '👥' },
   { name: 'NGワード', href: '/ng-words', icon: '🚫' },
   { name: 'フラグ投稿', href: '/flagged-posts', icon: '🏴' },
+  { name: '操作ログ', href: '/logs', icon: '📝' },
 ]
 
 export default function Layout() {

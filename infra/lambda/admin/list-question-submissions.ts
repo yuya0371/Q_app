@@ -34,7 +34,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       .slice(0, limit);
 
     if (filteredSubmissions.length === 0) {
-      return success({ submissions: [] });
+      return success({ items: [] });
     }
 
     // Get user details
@@ -68,7 +68,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       };
     });
 
-    return success({ submissions: result });
+    return success({ items: result });
   } catch (err) {
     console.error('List question submissions error:', err);
     return serverError('Failed to list question submissions');

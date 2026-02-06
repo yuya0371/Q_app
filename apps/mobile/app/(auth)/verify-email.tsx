@@ -9,19 +9,21 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
-import { useColorScheme } from 'react-native';
-import { Colors } from '../../src/constants/Colors';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useStyles } from '../../src/hooks/useStyles';
+import { useConfirmEmail, useResendCode } from '../../src/hooks/api';
+import { getErrorMessage } from '../../src/utils/errorHandler';
 
 export default function VerifyEmailScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const colors = isDark ? Colors.dark : Colors.light;
+  const { colors, spacing, fontSize, borderRadius } = useStyles();
+  const { email } = useLocalSearchParams<{ email: string }>();
 
   const [code, setCode] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  const confirmEmailMutation = useConfirmEmail();
+  const resendCodeMutation = useResendCode();
 
   const handleVerify = async () => {
     if (!code || code.length !== 6) {
@@ -29,38 +31,55 @@ export default function VerifyEmailScreen() {
       return;
     }
 
-    setIsLoading(true);
-    setError('');
-
-    try {
-      // TODO: Implement actual verification with Cognito
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Navigate to app ID setup
-      router.replace('/(auth)/set-app-id');
-    } catch (err) {
-      setError('確認コードが正しくありません');
-    } finally {
-      setIsLoading(false);
+    if (!email) {
+      setError('メールアドレスが見つかりません。もう一度登録してください。');
+      return;
     }
+
+    setError('');
+    setSuccessMessage('');
+
+    confirmEmailMutation.mutate(
+      { email, code },
+      {
+        onSuccess: () => {
+          // メール確認完了、ログイン画面へ誘導
+          setSuccessMessage('メール確認が完了しました。ログインしてください。');
+          setTimeout(() => {
+            router.replace('/(auth)/login');
+          }, 1500);
+        },
+        onError: (err) => {
+          setError(getErrorMessage(err));
+        },
+      }
+    );
   };
 
   const handleResendCode = async () => {
-    setIsResending(true);
-    setError('');
-
-    try {
-      // TODO: Implement resend code with Cognito
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      // Show success message
-    } catch (err) {
-      setError('コードの再送信に失敗しました');
-    } finally {
-      setIsResending(false);
+    if (!email) {
+      setError('メールアドレスが見つかりません。もう一度登録してください。');
+      return;
     }
+
+    setError('');
+    setSuccessMessage('');
+
+    resendCodeMutation.mutate(
+      { email },
+      {
+        onSuccess: () => {
+          setSuccessMessage('確認コードを再送信しました');
+        },
+        onError: (err) => {
+          setError(getErrorMessage(err));
+        },
+      }
+    );
   };
 
-  const styles = createStyles(colors);
+  const isLoading = confirmEmailMutation.isPending;
+  const styles = createStyles(colors, spacing, fontSize, borderRadius);
 
   return (
     <KeyboardAvoidingView
@@ -74,10 +93,14 @@ export default function VerifyEmailScreen() {
 
         <Text style={styles.title}>メールを確認してください</Text>
         <Text style={styles.description}>
-          登録したメールアドレスに確認コードを送信しました。{'\n'}
+          {email ? `${email} に` : '登録したメールアドレスに'}
+          確認コードを送信しました。{'\n'}
           6桁のコードを入力してください。
         </Text>
 
+        {successMessage ? (
+          <Text style={styles.successText}>{successMessage}</Text>
+        ) : null}
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <View style={styles.inputContainer}>
@@ -90,6 +113,7 @@ export default function VerifyEmailScreen() {
             keyboardType="number-pad"
             maxLength={6}
             textAlign="center"
+            editable={!isLoading}
           />
         </View>
 
@@ -108,9 +132,9 @@ export default function VerifyEmailScreen() {
         <TouchableOpacity
           style={styles.resendButton}
           onPress={handleResendCode}
-          disabled={isResending}
+          disabled={resendCodeMutation.isPending}
         >
-          {isResending ? (
+          {resendCodeMutation.isPending ? (
             <ActivityIndicator color={colors.accent} size="small" />
           ) : (
             <Text style={styles.resendText}>コードを再送信</Text>
@@ -121,7 +145,12 @@ export default function VerifyEmailScreen() {
   );
 }
 
-const createStyles = (colors: typeof Colors.light) =>
+const createStyles = (
+  colors: ReturnType<typeof useStyles>['colors'],
+  spacing: ReturnType<typeof useStyles>['spacing'],
+  fontSize: ReturnType<typeof useStyles>['fontSize'],
+  borderRadius: ReturnType<typeof useStyles>['borderRadius']
+) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -129,45 +158,51 @@ const createStyles = (colors: typeof Colors.light) =>
     },
     content: {
       flex: 1,
-      padding: 24,
+      padding: spacing.lg,
       alignItems: 'center',
       justifyContent: 'center',
     },
     iconContainer: {
-      marginBottom: 24,
+      marginBottom: spacing.lg,
     },
     icon: {
       fontSize: 64,
     },
     title: {
-      fontSize: 24,
+      fontSize: fontSize.xxl,
       fontWeight: '600',
       color: colors.text,
-      marginBottom: 12,
+      marginBottom: spacing.sm,
       textAlign: 'center',
     },
     description: {
-      fontSize: 14,
+      fontSize: fontSize.sm,
       color: colors.textSecondary,
       textAlign: 'center',
       lineHeight: 22,
-      marginBottom: 32,
+      marginBottom: spacing.xl,
+    },
+    successText: {
+      color: colors.success,
+      fontSize: fontSize.sm,
+      marginBottom: spacing.md,
+      textAlign: 'center',
     },
     errorText: {
       color: colors.danger,
-      fontSize: 14,
-      marginBottom: 16,
+      fontSize: fontSize.sm,
+      marginBottom: spacing.md,
       textAlign: 'center',
     },
     inputContainer: {
       width: '100%',
-      marginBottom: 16,
+      marginBottom: spacing.md,
     },
     input: {
       backgroundColor: colors.backgroundSecondary,
-      borderRadius: 12,
-      padding: 16,
-      fontSize: 24,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      fontSize: fontSize.xxl,
       fontWeight: '600',
       color: colors.text,
       borderWidth: 1,
@@ -176,8 +211,8 @@ const createStyles = (colors: typeof Colors.light) =>
     },
     button: {
       backgroundColor: colors.accent,
-      borderRadius: 12,
-      padding: 16,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
       alignItems: 'center',
       width: '100%',
     },
@@ -186,15 +221,15 @@ const createStyles = (colors: typeof Colors.light) =>
     },
     buttonText: {
       color: '#FFFFFF',
-      fontSize: 16,
+      fontSize: fontSize.md,
       fontWeight: '600',
     },
     resendButton: {
-      marginTop: 16,
-      padding: 12,
+      marginTop: spacing.md,
+      padding: spacing.sm,
     },
     resendText: {
       color: colors.accent,
-      fontSize: 14,
+      fontSize: fontSize.sm,
     },
   });

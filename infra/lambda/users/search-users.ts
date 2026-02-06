@@ -6,6 +6,7 @@ import { success, validationError, unauthorized, serverError } from '../common/r
 interface User {
   userId: string;
   username: string;
+  appId?: string;
   displayName: string;
   profileImageUrl?: string;
   isPrivate: boolean;
@@ -53,24 +54,26 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     // Scan users (for simple search - in production, use OpenSearch or similar)
     const allUsers = await scanItems<User>({
       TableName: TABLES.USERS,
-      ProjectionExpression: 'userId, username, displayName, profileImageUrl, isPrivate',
+      ProjectionExpression: 'userId, username, appId, displayName, profileImageUrl, isPrivate',
     });
 
     // Filter by query and exclude blocked users
+    // Only include users who have appId set (completed onboarding)
     const matchedUsers = allUsers
       .filter((user) => {
         if (user.userId === authUser.userId) return false;
         if (blockedUserIds.has(user.userId)) return false;
+        if (!user.appId) return false; // Skip users without appId
 
-        const username = user.username.toLowerCase();
+        const appId = user.appId.toLowerCase();
         const displayName = user.displayName.toLowerCase();
 
-        return username.includes(query) || displayName.includes(query);
+        return appId.includes(query) || displayName.includes(query);
       })
       .slice(0, limit)
       .map((user) => ({
         userId: user.userId,
-        username: user.username,
+        appId: user.appId!,
         displayName: user.displayName,
         profileImageUrl: user.profileImageUrl || null,
         isPrivate: user.isPrivate,

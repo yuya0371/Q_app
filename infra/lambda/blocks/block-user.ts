@@ -14,7 +14,7 @@ interface Block {
 
 interface Follow {
   followerId: string;
-  followingId: string;
+  followeeId: string;
 }
 
 export const handler: APIGatewayProxyHandler = async (event) => {
@@ -70,11 +70,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     await Promise.all([
       deleteItem({
         TableName: TABLES.FOLLOWS,
-        Key: { followerId: authUser.userId, followingId: targetUserId },
+        Key: { followerId: authUser.userId, followeeId: targetUserId },
       }).catch(() => {}), // Ignore if not exists
       deleteItem({
         TableName: TABLES.FOLLOWS,
-        Key: { followerId: targetUserId, followingId: authUser.userId },
+        Key: { followerId: targetUserId, followeeId: authUser.userId },
       }).catch(() => {}), // Ignore if not exists
     ]);
 

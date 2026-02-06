@@ -1,17 +1,19 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// SecureStore adapter for zustand persist
-const secureStorage = {
+// AsyncStorage adapter for zustand persist
+// Note: SecureStoreは2048バイト制限があるため、JWTトークンを含む認証データには
+// AsyncStorageを使用。JWTは署名されているため、改ざん検知は可能。
+const asyncStorage = {
   getItem: async (name: string): Promise<string | null> => {
-    return await SecureStore.getItemAsync(name);
+    return await AsyncStorage.getItem(name);
   },
   setItem: async (name: string, value: string): Promise<void> => {
-    await SecureStore.setItemAsync(name, value);
+    await AsyncStorage.setItem(name, value);
   },
   removeItem: async (name: string): Promise<void> => {
-    await SecureStore.deleteItemAsync(name);
+    await AsyncStorage.removeItem(name);
   },
 };
 
@@ -56,7 +58,7 @@ export const useAuthStore = create<AuthState>()(
           accessToken,
           refreshToken,
           // Check if user has completed onboarding (has appId)
-          hasCompletedOnboarding: !!user.appId,
+          hasCompletedOnboarding: !!user?.appId,
         }),
 
       setOnboardingComplete: () =>
@@ -80,7 +82,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
-      storage: createJSONStorage(() => secureStorage),
+      storage: createJSONStorage(() => asyncStorage),
     }
   )
 );

@@ -5,7 +5,7 @@ import { success, unauthorized, serverError } from '../common/response';
 
 interface Follow {
   followerId: string;
-  followingId: string;
+  followeeId: string;
 }
 
 interface Block {
@@ -18,8 +18,12 @@ interface Answer {
   userId: string;
   questionId: string;
   text: string;
+  displayText?: string;
   date: string;
+  isOnTime: boolean;
+  lateMinutes: number;
   reactionCount: number;
+  isDeleted?: boolean;
   createdAt: string;
 }
 
@@ -63,7 +67,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       ExpressionAttributeValues: { ':userId': authUser.userId },
     });
 
-    const followingIds = follows.map((f) => f.followingId);
+    const followeeIds = follows.map((f) => f.followeeId);
 
     // Get blocked users
     const [blockedByMe, blockedMe] = await Promise.all([
@@ -110,14 +114,24 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       ExpressionAttributeValues: { ':date': date },
     });
 
-    // Filter to only followed users (exclude blocked)
-    const followingSet = new Set(followingIds);
+    // Filter to only followed users (exclude blocked and deleted)
+    const followingSet = new Set(followeeIds);
     const filteredAnswers = answers
       .filter((a) => {
+        // Exclude deleted answers
+        if (a.isDeleted) return false;
         // Include own answers too
         if (a.userId === authUser.userId) return true;
         // Include if following and not blocked
         return followingSet.has(a.userId) && !blockedIds.has(a.userId);
+      })
+      // Sort: On-time first, then by createdAt (earliest first)
+      .sort((a, b) => {
+        // On-time優先
+        if (a.isOnTime && !b.isOnTime) return -1;
+        if (!a.isOnTime && b.isOnTime) return 1;
+        // 同じカテゴリ内では投稿が早い順
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       })
       .slice(0, limit);
 
@@ -165,7 +179,9 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       const user = userMap.get(a.userId);
       return {
         answerId: a.answerId,
-        text: a.text,
+        text: a.displayText || a.text, // マスク済みテキストを優先
+        isOnTime: a.isOnTime ?? true,
+        lateMinutes: a.lateMinutes ?? 0,
         reactionCount: a.reactionCount || 0,
         hasReacted: hasReactedMap.get(a.answerId) || false,
         createdAt: a.createdAt,

@@ -22,7 +22,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       .slice(0, limit);
 
     return success({
-      questions: sorted.map((q) => ({
+      items: sorted.map((q) => ({
         questionId: q.questionId,
         text: q.text,
         category: q.category || null,

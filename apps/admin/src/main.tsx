@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import App from './App'
 import { initSentry } from './services/sentry'
+import './services/devLogger' // 開発ログを有効化
 
 // Initialize Sentry
 initSentry()

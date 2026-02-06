@@ -6,6 +6,9 @@ import { success, notFound, unauthorized, serverError } from '../common/response
 interface DailyQuestion {
   date: string;
   questionId: string;
+  questionText?: string;
+  scheduledPublishTime?: string;
+  publishedAt?: string;
 }
 
 interface Question {
@@ -36,8 +39,15 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       Key: { date: today },
     });
 
-    if (!dailyQuestion) {
-      return notFound('No question available for today');
+    // DailyQuestionsレコードがない、またはpublishedAtがセットされていない場合は未公開状態
+    if (!dailyQuestion || !dailyQuestion.publishedAt) {
+      return success({
+        date: today,
+        isPublished: false,
+        question: null,
+        hasAnswered: false,
+        userAnswer: null,
+      });
     }
 
     // Get the question details
@@ -65,6 +75,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     return success({
       date: today,
+      isPublished: true,
+      publishedAt: dailyQuestion.publishedAt,
       question: {
         questionId: question.questionId,
         text: question.text,

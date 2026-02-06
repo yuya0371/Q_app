@@ -61,7 +61,7 @@ export const handler: Handler<DeleteUserDataEvent, DeleteUserDataResult> = async
   }
 
   // Delete follows (both directions)
-  const following = await queryItems<{ followerId: string; followingId: string }>({
+  const following = await queryItems<{ followerId: string; followeeId: string }>({
     TableName: TABLES.FOLLOWS,
     KeyConditionExpression: 'followerId = :userId',
     ExpressionAttributeValues: { ':userId': userId },
@@ -70,22 +70,22 @@ export const handler: Handler<DeleteUserDataEvent, DeleteUserDataResult> = async
   for (const follow of following) {
     await deleteItem({
       TableName: TABLES.FOLLOWS,
-      Key: { followerId: follow.followerId, followingId: follow.followingId },
+      Key: { followerId: follow.followerId, followeeId: follow.followeeId },
     });
     deletedFollows++;
   }
 
-  const followers = await queryItems<{ followerId: string; followingId: string }>({
+  const followers = await queryItems<{ followerId: string; followeeId: string }>({
     TableName: TABLES.FOLLOWS,
-    IndexName: 'followingId-index',
-    KeyConditionExpression: 'followingId = :userId',
+    IndexName: 'GSI1_Followers',
+    KeyConditionExpression: 'followeeId = :userId',
     ExpressionAttributeValues: { ':userId': userId },
   });
 
   for (const follow of followers) {
     await deleteItem({
       TableName: TABLES.FOLLOWS,
-      Key: { followerId: follow.followerId, followingId: follow.followingId },
+      Key: { followerId: follow.followerId, followeeId: follow.followeeId },
     });
     deletedFollows++;
   }

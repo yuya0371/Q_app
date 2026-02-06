@@ -12,17 +12,17 @@ import {
 import { router } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import { Colors } from '../../src/constants/Colors';
-import { useAuthStore } from '../../src/stores/authStore';
+import { useSetAppId } from '../../src/hooks/api/useAuth';
+import { getErrorMessage } from '../../src/utils/errorHandler';
 
 export default function SetAppIdScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = isDark ? Colors.dark : Colors.light;
 
-  const { updateUser } = useAuthStore();
+  const setAppIdMutation = useSetAppId();
 
   const [appId, setAppId] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [error, setError] = useState('');
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
@@ -80,19 +80,21 @@ export default function SetAppIdScreen() {
       return;
     }
 
-    setIsLoading(true);
     setError('');
 
     try {
-      // TODO: Implement actual API call to set app ID
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      updateUser({ appId });
+      await setAppIdMutation.mutateAsync({ appId });
       router.push('/(auth)/set-profile');
-    } catch (err) {
-      setError('設定に失敗しました。もう一度お試しください。');
-    } finally {
-      setIsLoading(false);
+    } catch (err: unknown) {
+      const message = getErrorMessage(err);
+      if (message.includes('already taken') || message.includes('既に使用')) {
+        setError('このIDは既に使用されています');
+        setIsAvailable(false);
+      } else if (message.includes('already set') || message.includes('変更できません')) {
+        setError('IDは既に設定済みです');
+      } else {
+        setError('設定に失敗しました。もう一度お試しください。');
+      }
     }
   };
 
@@ -155,12 +157,12 @@ export default function SetAppIdScreen() {
         <TouchableOpacity
           style={[
             styles.button,
-            (isLoading || isAvailable !== true) && styles.buttonDisabled,
+            (setAppIdMutation.isPending || isAvailable !== true) && styles.buttonDisabled,
           ]}
           onPress={handleContinue}
-          disabled={isLoading || isAvailable !== true}
+          disabled={setAppIdMutation.isPending || isAvailable !== true}
         >
-          {isLoading ? (
+          {setAppIdMutation.isPending ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <Text style={styles.buttonText}>次へ</Text>

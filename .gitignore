@@ -93,6 +93,7 @@ coverage/
 # ===================
 # Misc
 # ===================
+Screenshot/
 *.local
 .cache/
 .parcel-cache/

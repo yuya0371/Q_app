@@ -11,18 +11,18 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Link, router } from 'expo-router';
-import { useColorScheme } from 'react-native';
-import { Colors } from '../../src/constants/Colors';
+import { useStyles } from '../../src/hooks/useStyles';
+import { useLogin } from '../../src/hooks/api';
+import { getErrorMessage } from '../../src/utils/errorHandler';
 
 export default function LoginScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const colors = isDark ? Colors.dark : Colors.light;
+  const { colors, spacing, fontSize, borderRadius } = useStyles();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const loginMutation = useLogin();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -30,24 +30,27 @@ export default function LoginScreen() {
       return;
     }
 
-    setIsLoading(true);
     setError('');
 
-    try {
-      // TODO: Implement actual login with Cognito
-      // For now, just simulate a delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Navigate to home after successful login
-      router.replace('/(tabs)');
-    } catch (err) {
-      setError('ログインに失敗しました。メールアドレスとパスワードを確認してください。');
-    } finally {
-      setIsLoading(false);
-    }
+    loginMutation.mutate(
+      { email, password },
+      {
+        onSuccess: (data) => {
+          // オンボーディング完了済みならホームへ、未完了ならアプリID設定へ
+          if (data.user?.appId) {
+            router.replace('/(tabs)');
+          } else {
+            router.replace('/(auth)/set-app-id');
+          }
+        },
+        onError: (err) => {
+          setError(getErrorMessage(err));
+        },
+      }
+    );
   };
 
-  const styles = createStyles(colors);
+  const styles = createStyles(colors, spacing, fontSize, borderRadius);
 
   return (
     <KeyboardAvoidingView
@@ -77,6 +80,7 @@ export default function LoginScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
+              editable={!loginMutation.isPending}
             />
           </View>
 
@@ -89,15 +93,16 @@ export default function LoginScreen() {
               placeholder="パスワード"
               placeholderTextColor={colors.textMuted}
               secureTextEntry
+              editable={!loginMutation.isPending}
             />
           </View>
 
           <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
+            style={[styles.button, loginMutation.isPending && styles.buttonDisabled]}
             onPress={handleLogin}
-            disabled={isLoading}
+            disabled={loginMutation.isPending}
           >
-            {isLoading ? (
+            {loginMutation.isPending ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={styles.buttonText}>ログイン</Text>
@@ -124,7 +129,12 @@ export default function LoginScreen() {
   );
 }
 
-const createStyles = (colors: typeof Colors.light) =>
+const createStyles = (
+  colors: ReturnType<typeof useStyles>['colors'],
+  spacing: ReturnType<typeof useStyles>['spacing'],
+  fontSize: ReturnType<typeof useStyles>['fontSize'],
+  borderRadius: ReturnType<typeof useStyles>['borderRadius']
+) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -133,11 +143,11 @@ const createStyles = (colors: typeof Colors.light) =>
     scrollContent: {
       flexGrow: 1,
       justifyContent: 'center',
-      padding: 24,
+      padding: spacing.lg,
     },
     header: {
       alignItems: 'center',
-      marginBottom: 48,
+      marginBottom: spacing.xxl,
     },
     logo: {
       fontSize: 64,
@@ -145,74 +155,74 @@ const createStyles = (colors: typeof Colors.light) =>
       color: colors.accent,
     },
     subtitle: {
-      fontSize: 16,
+      fontSize: fontSize.md,
       color: colors.textSecondary,
-      marginTop: 8,
+      marginTop: spacing.sm,
     },
     form: {
       width: '100%',
     },
     errorText: {
       color: colors.danger,
-      fontSize: 14,
-      marginBottom: 16,
+      fontSize: fontSize.sm,
+      marginBottom: spacing.md,
       textAlign: 'center',
     },
     inputContainer: {
-      marginBottom: 16,
+      marginBottom: spacing.md,
     },
     label: {
-      fontSize: 14,
+      fontSize: fontSize.sm,
       fontWeight: '500',
       color: colors.text,
-      marginBottom: 8,
+      marginBottom: spacing.sm,
     },
     input: {
       backgroundColor: colors.backgroundSecondary,
-      borderRadius: 12,
-      padding: 16,
-      fontSize: 16,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      fontSize: fontSize.md,
       color: colors.text,
       borderWidth: 1,
       borderColor: colors.border,
     },
     button: {
       backgroundColor: colors.accent,
-      borderRadius: 12,
-      padding: 16,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
       alignItems: 'center',
-      marginTop: 8,
+      marginTop: spacing.sm,
     },
     buttonDisabled: {
       opacity: 0.6,
     },
     buttonText: {
       color: '#FFFFFF',
-      fontSize: 16,
+      fontSize: fontSize.md,
       fontWeight: '600',
     },
     linkButton: {
       alignItems: 'center',
-      marginTop: 16,
+      marginTop: spacing.md,
     },
     linkText: {
       color: colors.accent,
-      fontSize: 14,
+      fontSize: fontSize.sm,
     },
     footer: {
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      marginTop: 32,
-      gap: 8,
+      marginTop: spacing.xl,
+      gap: spacing.sm,
     },
     footerText: {
       color: colors.textSecondary,
-      fontSize: 14,
+      fontSize: fontSize.sm,
     },
     footerLink: {
       color: colors.accent,
-      fontSize: 14,
+      fontSize: fontSize.sm,
       fontWeight: '600',
     },
   });

@@ -18,6 +18,7 @@ export interface Tables {
   userQuestionSubmissions: dynamodb.Table;
   ngWords: dynamodb.Table;
   pushTokens: dynamodb.Table;
+  adminLogs: dynamodb.Table;
 }
 
 export class DatabaseStack extends cdk.Stack {
@@ -42,6 +43,11 @@ export class DatabaseStack extends cdk.Stack {
     usersTable.addGlobalSecondaryIndex({
       indexName: 'GSI1_AppId',
       partitionKey: { name: 'appId', type: dynamodb.AttributeType.STRING },
+    });
+
+    usersTable.addGlobalSecondaryIndex({
+      indexName: 'email-index',
+      partitionKey: { name: 'email', type: dynamodb.AttributeType.STRING },
     });
 
     // DailyQuestions Table
@@ -196,6 +202,33 @@ export class DatabaseStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
+    // AdminLogs Table (監査ログ)
+    const adminLogsTable = new dynamodb.Table(this, 'AdminLogsTable', {
+      tableName: `${prefix}-admin-logs`,
+      partitionKey: { name: 'pk', type: dynamodb.AttributeType.STRING }, // 'LOG'
+      sortKey: { name: 'sk', type: dynamodb.AttributeType.STRING }, // timestamp#logId
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      pointInTimeRecoverySpecification: {
+        pointInTimeRecoveryEnabled: true,
+      },
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      timeToLiveAttribute: 'ttl', // 90日後に自動削除
+    });
+
+    // 操作種別でのクエリ用GSI
+    adminLogsTable.addGlobalSecondaryIndex({
+      indexName: 'GSI1_Action',
+      partitionKey: { name: 'action', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'timestamp', type: dynamodb.AttributeType.STRING },
+    });
+
+    // 管理者IDでのクエリ用GSI
+    adminLogsTable.addGlobalSecondaryIndex({
+      indexName: 'GSI2_Admin',
+      partitionKey: { name: 'adminId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'timestamp', type: dynamodb.AttributeType.STRING },
+    });
+
     this.tables = {
       users: usersTable,
       dailyQuestions: dailyQuestionsTable,
@@ -208,6 +241,7 @@ export class DatabaseStack extends cdk.Stack {
       userQuestionSubmissions: userQuestionSubmissionsTable,
       ngWords: ngWordsTable,
       pushTokens: pushTokensTable,
+      adminLogs: adminLogsTable,
     };
   }
 }

@@ -1,82 +1,58 @@
-import { useState } from 'react'
+import { useState } from 'react';
+import { useFlaggedPosts, useReviewFlaggedPost } from '../hooks/useAdminApi';
 
-interface FlaggedPost {
-  id: string
-  userId: string
-  userAppId: string
-  content: string
-  reason: string
-  flaggedAt: string
-  status: 'pending' | 'approved' | 'removed'
-}
-
-const mockFlaggedPosts: FlaggedPost[] = [
-  {
-    id: '1',
-    userId: 'user1',
-    userAppId: 'tanaka',
-    content: 'この投稿にはNGワードが含まれています...',
-    reason: 'NGワード検出: spam',
-    flaggedAt: '2024-01-15 10:30',
-    status: 'pending'
-  },
-  {
-    id: '2',
-    userId: 'user2',
-    userAppId: 'yamada',
-    content: '別のフラグ付き投稿内容',
-    reason: 'NGワード検出: 広告',
-    flaggedAt: '2024-01-15 09:00',
-    status: 'pending'
-  },
-  {
-    id: '3',
-    userId: 'user3',
-    userAppId: 'suzuki',
-    content: '確認済みの投稿',
-    reason: 'NGワード検出: test',
-    flaggedAt: '2024-01-14 15:00',
-    status: 'approved'
-  },
-]
+type FilterStatus = 'pending' | 'all';
 
 export default function FlaggedPostsPage() {
-  const [posts, setPosts] = useState(mockFlaggedPosts)
-  const [filter, setFilter] = useState<'all' | 'pending'>('pending')
+  const [filter, setFilter] = useState<FilterStatus>('pending');
 
-  const handleApprove = (id: string) => {
-    setPosts(posts.map(p =>
-      p.id === id ? { ...p, status: 'approved' as const } : p
-    ))
-  }
+  const { data, isLoading, error } = useFlaggedPosts(filter === 'all' ? undefined : filter);
+  const reviewPost = useReviewFlaggedPost();
 
-  const handleRemove = (id: string) => {
-    setPosts(posts.map(p =>
-      p.id === id ? { ...p, status: 'removed' as const } : p
-    ))
-  }
+  const handleApprove = (answerId: string) => {
+    reviewPost.mutate({ answerId, status: 'approved' });
+  };
 
-  const filteredPosts = posts.filter(p =>
-    filter === 'all' ? true : p.status === 'pending'
-  )
+  const handleRemove = (answerId: string) => {
+    if (!confirm('この投稿を削除しますか？')) return;
+    reviewPost.mutate({ answerId, status: 'removed' });
+  };
 
-  const getStatusBadge = (status: FlaggedPost['status']) => {
-    const styles = {
+  const getStatusBadge = (status: string) => {
+    const styles: Record<string, string> = {
       pending: 'bg-yellow-100 text-yellow-800',
       approved: 'bg-green-100 text-green-800',
       removed: 'bg-red-100 text-red-800',
-    }
-    const labels = {
+    };
+    const labels: Record<string, string> = {
       pending: '未確認',
       approved: '承認',
       removed: '削除済み',
-    }
+    };
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status]}`}>
         {labels[status]}
       </span>
-    )
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">読み込み中...</div>
+      </div>
+    );
   }
+
+  if (error) {
+    return (
+      <div className="rounded-lg bg-red-50 p-4 text-red-600">
+        データの取得に失敗しました
+      </div>
+    );
+  }
+
+  const posts = data?.items || [];
 
   return (
     <div>
@@ -100,13 +76,13 @@ export default function FlaggedPostsPage() {
       </div>
 
       <div className="space-y-4">
-        {filteredPosts.length === 0 ? (
+        {posts.length === 0 ? (
           <div className="rounded-lg bg-white p-8 shadow text-center text-gray-500">
             フラグ付き投稿はありません
           </div>
         ) : (
-          filteredPosts.map((post) => (
-            <div key={post.id} className="rounded-lg bg-white p-6 shadow">
+          posts.map((post) => (
+            <div key={post.answerId} className="rounded-lg bg-white p-6 shadow">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
@@ -115,28 +91,32 @@ export default function FlaggedPostsPage() {
                   </div>
 
                   <div className="bg-gray-50 rounded p-3 mb-3">
-                    <p className="text-gray-700">{post.content}</p>
+                    <p className="text-gray-700">{post.displayText || post.text}</p>
                   </div>
 
                   <div className="flex items-center gap-4 text-sm">
                     <span className="text-red-600 bg-red-50 px-2 py-1 rounded">
-                      {post.reason}
+                      {post.flagReason}
                     </span>
-                    <span className="text-gray-500">{post.flaggedAt}</span>
+                    <span className="text-gray-500">
+                      {new Date(post.flaggedAt).toLocaleString('ja-JP')}
+                    </span>
                   </div>
                 </div>
 
                 {post.status === 'pending' && (
                   <div className="flex gap-2 ml-4">
                     <button
-                      onClick={() => handleApprove(post.id)}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
+                      onClick={() => handleApprove(post.answerId)}
+                      disabled={reviewPost.isPending}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
                     >
                       承認
                     </button>
                     <button
-                      onClick={() => handleRemove(post.id)}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700"
+                      onClick={() => handleRemove(post.answerId)}
+                      disabled={reviewPost.isPending}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
                     >
                       削除
                     </button>
@@ -148,5 +128,5 @@ export default function FlaggedPostsPage() {
         )}
       </div>
     </div>
-  )
+  );
 }

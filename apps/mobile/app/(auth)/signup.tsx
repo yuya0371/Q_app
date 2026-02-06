@@ -11,20 +11,75 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
-import { useColorScheme } from 'react-native';
-import { Colors } from '../../src/constants/Colors';
+import { useStyles } from '../../src/hooks/useStyles';
+import { useSignup } from '../../src/hooks/api';
+import { getErrorMessage } from '../../src/utils/errorHandler';
 
 export default function SignupScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const colors = isDark ? Colors.dark : Colors.light;
+  const { colors, spacing, fontSize, borderRadius } = useStyles();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [birthDate, setBirthDate] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const signupMutation = useSignup();
+
+  const parseBirthDate = (date: string): { year: number; month: number; day: number } | null => {
+    // YYYYMMDD形式（8桁）
+    if (/^\d{8}$/.test(date)) {
+      return {
+        year: parseInt(date.slice(0, 4), 10),
+        month: parseInt(date.slice(4, 6), 10),
+        day: parseInt(date.slice(6, 8), 10),
+      };
+    }
+    // YYYY/MM/DD または YYYY-MM-DD形式
+    const match = date.match(/^(\d{4})[\/\-](\d{2})[\/\-](\d{2})$/);
+    if (match) {
+      return {
+        year: parseInt(match[1], 10),
+        month: parseInt(match[2], 10),
+        day: parseInt(match[3], 10),
+      };
+    }
+    return null;
+  };
+
+  // API送信用にYYYY-MM-DD形式に変換
+  const formatBirthDateForApi = (date: string): string | null => {
+    const parsed = parseBirthDate(date);
+    if (!parsed) return null;
+    const { year, month, day } = parsed;
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  };
+
+  const validateBirthDate = (date: string): boolean => {
+    const parsed = parseBirthDate(date);
+    if (!parsed) return false;
+
+    const { year, month, day } = parsed;
+    const dateObj = new Date(year, month - 1, day);
+
+    // 有効な日付かチェック
+    if (
+      dateObj.getFullYear() !== year ||
+      dateObj.getMonth() !== month - 1 ||
+      dateObj.getDate() !== day
+    ) {
+      return false;
+    }
+
+    // 13歳以上かチェック
+    const today = new Date();
+    const age = today.getFullYear() - year;
+    if (age < 13 || (age === 13 && today < new Date(today.getFullYear(), month - 1, day))) {
+      return false;
+    }
+
+    return true;
+  };
 
   const handleSignup = async () => {
     if (!email || !password || !confirmPassword || !birthDate) {
@@ -42,23 +97,37 @@ export default function SignupScreen() {
       return;
     }
 
-    setIsLoading(true);
+    if (!validateBirthDate(birthDate)) {
+      setError('有効な生年月日を入力してください（13歳以上）');
+      return;
+    }
+
+    const formattedBirthDate = formatBirthDateForApi(birthDate);
+    if (!formattedBirthDate) {
+      setError('生年月日の形式が正しくありません');
+      return;
+    }
+
     setError('');
 
-    try {
-      // TODO: Implement actual signup with Cognito
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Navigate to email verification
-      router.push('/(auth)/verify-email');
-    } catch (err) {
-      setError('登録に失敗しました。もう一度お試しください。');
-    } finally {
-      setIsLoading(false);
-    }
+    signupMutation.mutate(
+      { email, password, birthDate: formattedBirthDate },
+      {
+        onSuccess: () => {
+          // メール確認画面へ遷移（emailを渡す）
+          router.push({
+            pathname: '/(auth)/verify-email',
+            params: { email },
+          });
+        },
+        onError: (err) => {
+          setError(getErrorMessage(err));
+        },
+      }
+    );
   };
 
-  const styles = createStyles(colors);
+  const styles = createStyles(colors, spacing, fontSize, borderRadius);
 
   return (
     <KeyboardAvoidingView
@@ -83,6 +152,7 @@ export default function SignupScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
+              editable={!signupMutation.isPending}
             />
           </View>
 
@@ -95,6 +165,7 @@ export default function SignupScreen() {
               placeholder="8文字以上"
               placeholderTextColor={colors.textMuted}
               secureTextEntry
+              editable={!signupMutation.isPending}
             />
           </View>
 
@@ -107,6 +178,7 @@ export default function SignupScreen() {
               placeholder="パスワードを再入力"
               placeholderTextColor={colors.textMuted}
               secureTextEntry
+              editable={!signupMutation.isPending}
             />
           </View>
 
@@ -116,9 +188,10 @@ export default function SignupScreen() {
               style={styles.input}
               value={birthDate}
               onChangeText={setBirthDate}
-              placeholder="YYYY/MM/DD"
+              placeholder="20010101 または 2001/01/01"
               placeholderTextColor={colors.textMuted}
               keyboardType="numeric"
+              editable={!signupMutation.isPending}
             />
             <Text style={styles.hint}>
               年齢確認のために使用します。公開されません。
@@ -126,11 +199,11 @@ export default function SignupScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
+            style={[styles.button, signupMutation.isPending && styles.buttonDisabled]}
             onPress={handleSignup}
-            disabled={isLoading}
+            disabled={signupMutation.isPending}
           >
-            {isLoading ? (
+            {signupMutation.isPending ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={styles.buttonText}>登録する</Text>
@@ -150,7 +223,12 @@ export default function SignupScreen() {
   );
 }
 
-const createStyles = (colors: typeof Colors.light) =>
+const createStyles = (
+  colors: ReturnType<typeof useStyles>['colors'],
+  spacing: ReturnType<typeof useStyles>['spacing'],
+  fontSize: ReturnType<typeof useStyles>['fontSize'],
+  borderRadius: ReturnType<typeof useStyles>['borderRadius']
+) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -158,60 +236,60 @@ const createStyles = (colors: typeof Colors.light) =>
     },
     scrollContent: {
       flexGrow: 1,
-      padding: 24,
+      padding: spacing.lg,
     },
     form: {
       width: '100%',
     },
     errorText: {
       color: colors.danger,
-      fontSize: 14,
-      marginBottom: 16,
+      fontSize: fontSize.sm,
+      marginBottom: spacing.md,
       textAlign: 'center',
     },
     inputContainer: {
-      marginBottom: 16,
+      marginBottom: spacing.md,
     },
     label: {
-      fontSize: 14,
+      fontSize: fontSize.sm,
       fontWeight: '500',
       color: colors.text,
-      marginBottom: 8,
+      marginBottom: spacing.sm,
     },
     input: {
       backgroundColor: colors.backgroundSecondary,
-      borderRadius: 12,
-      padding: 16,
-      fontSize: 16,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      fontSize: fontSize.md,
       color: colors.text,
       borderWidth: 1,
       borderColor: colors.border,
     },
     hint: {
-      fontSize: 12,
+      fontSize: fontSize.xs,
       color: colors.textMuted,
-      marginTop: 4,
+      marginTop: spacing.xs,
     },
     button: {
       backgroundColor: colors.accent,
-      borderRadius: 12,
-      padding: 16,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
       alignItems: 'center',
-      marginTop: 8,
+      marginTop: spacing.sm,
     },
     buttonDisabled: {
       opacity: 0.6,
     },
     buttonText: {
       color: '#FFFFFF',
-      fontSize: 16,
+      fontSize: fontSize.md,
       fontWeight: '600',
     },
     terms: {
-      fontSize: 12,
+      fontSize: fontSize.xs,
       color: colors.textMuted,
       textAlign: 'center',
-      marginTop: 16,
+      marginTop: spacing.md,
       lineHeight: 18,
     },
     termsLink: {

@@ -17,7 +17,13 @@ export class StorageStack extends cdk.Stack {
     // Profile Image Bucket
     this.profileImageBucket = new s3.Bucket(this, 'ProfileImageBucket', {
       bucketName: `${prefix}-profile-images-${this.account}`,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      blockPublicAccess: new s3.BlockPublicAccess({
+        blockPublicAcls: false,
+        ignorePublicAcls: false,
+        blockPublicPolicy: false,
+        restrictPublicBuckets: false,
+      }),
+      publicReadAccess: true,
       encryption: s3.BucketEncryption.S3_MANAGED,
       versioned: false,
       removalPolicy: cdk.RemovalPolicy.RETAIN,

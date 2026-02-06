@@ -5,7 +5,7 @@ import { success, validationError, notFound, unauthorized, serverError } from '.
 
 interface Follow {
   followerId: string;
-  followingId: string;
+  followeeId: string;
 }
 
 export const handler: APIGatewayProxyHandler = async (event) => {
@@ -23,7 +23,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     // Check if following
     const existingFollow = await getItem<Follow>({
       TableName: TABLES.FOLLOWS,
-      Key: { followerId: authUser.userId, followingId: targetUserId },
+      Key: { followerId: authUser.userId, followeeId: targetUserId },
     });
 
     if (!existingFollow) {
@@ -33,7 +33,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     // Delete follow
     await deleteItem({
       TableName: TABLES.FOLLOWS,
-      Key: { followerId: authUser.userId, followingId: targetUserId },
+      Key: { followerId: authUser.userId, followeeId: targetUserId },
     });
 
     return success({

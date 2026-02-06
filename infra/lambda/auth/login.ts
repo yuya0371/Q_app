@@ -26,18 +26,20 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     const authResult = await login(body.email, body.password);
 
     // Get user from DynamoDB
+    console.log('Looking up user by email:', body.email, 'in table:', USERS_TABLE);
     const userResult = await docClient.send(
       new QueryCommand({
         TableName: USERS_TABLE,
         IndexName: 'email-index',
         KeyConditionExpression: 'email = :email',
         ExpressionAttributeValues: {
-          ':email': body.email,
+          ':email': body.email.toLowerCase().trim(),
         },
         Limit: 1,
       })
     );
 
+    console.log('User lookup result:', JSON.stringify(userResult.Items));
     const user = userResult.Items?.[0];
 
     return success({
@@ -47,6 +49,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         appId: user.appId,
         displayName: user.displayName,
         profileImageUrl: user.profileImageUrl,
+        isAdmin: user.isAdmin || false,
       } : null,
       accessToken: authResult.accessToken,
       refreshToken: authResult.refreshToken,

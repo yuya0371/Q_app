@@ -4,13 +4,15 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Switch,
   Alert,
+  Linking,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useColorScheme } from 'react-native';
+import Constants from 'expo-constants';
 import { Colors } from '../../src/constants/Colors';
 import { useAuthStore } from '../../src/stores/authStore';
+import { useMyProfile } from '../../src/hooks/api';
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
@@ -18,6 +20,13 @@ export default function SettingsScreen() {
   const colors = isDark ? Colors.dark : Colors.light;
 
   const { logout } = useAuthStore();
+  const { data: profile } = useMyProfile();
+
+  // 公開範囲のテキストを取得
+  const getVisibilityText = () => {
+    if (!profile) return '読み込み中...';
+    return profile.isPrivate ? '相互フォローのみ' : '全員に公開';
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -37,31 +46,18 @@ export default function SettingsScreen() {
     );
   };
 
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'アカウント削除',
-      'アカウントを削除すると、すべてのデータが完全に削除されます。この操作は取り消せません。',
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: '削除する',
-          style: 'destructive',
-          onPress: () => {
-            // TODO: Implement account deletion
-            Alert.alert('確認', '本当に削除しますか？', [
-              { text: 'キャンセル', style: 'cancel' },
-              {
-                text: '削除',
-                style: 'destructive',
-                onPress: () => {
-                  // TODO: Call API to delete account
-                },
-              },
-            ]);
-          },
-        },
-      ]
-    );
+  const handleOpenLink = (url: string) => {
+    Linking.openURL(url).catch(() => {
+      Alert.alert('エラー', 'リンクを開けませんでした');
+    });
+  };
+
+  const handleContact = () => {
+    // お問い合わせ用のメールアドレスまたはフォームURL
+    const contactEmail = 'support@example.com';
+    Linking.openURL(`mailto:${contactEmail}?subject=お問い合わせ`).catch(() => {
+      Alert.alert('エラー', 'メールアプリを開けませんでした');
+    });
   };
 
   const styles = createStyles(colors);
@@ -96,6 +92,8 @@ export default function SettingsScreen() {
     </TouchableOpacity>
   );
 
+  const appVersion = Constants.expoConfig?.version || '1.0.0';
+
   return (
     <ScrollView style={styles.container}>
       {/* Account Section */}
@@ -105,13 +103,13 @@ export default function SettingsScreen() {
           <SettingItem
             title="メールアドレスの変更"
             onPress={() => {
-              // TODO: Navigate to email change screen
+              Alert.alert('準備中', 'この機能は準備中です');
             }}
           />
           <SettingItem
             title="パスワードの変更"
             onPress={() => {
-              // TODO: Navigate to password change screen
+              Alert.alert('準備中', 'この機能は準備中です');
             }}
           />
         </View>
@@ -123,16 +121,12 @@ export default function SettingsScreen() {
         <View style={styles.sectionContent}>
           <SettingItem
             title="回答の公開範囲"
-            subtitle="相互フォローのみ"
-            onPress={() => {
-              // TODO: Navigate to visibility settings
-            }}
+            subtitle={getVisibilityText()}
+            onPress={() => router.push('/settings/visibility')}
           />
           <SettingItem
             title="ブロックリスト"
-            onPress={() => {
-              // TODO: Navigate to block list
-            }}
+            onPress={() => router.push('/settings/blocked-users')}
           />
         </View>
       </View>
@@ -142,17 +136,21 @@ export default function SettingsScreen() {
         <Text style={styles.sectionTitle}>通知</Text>
         <View style={styles.sectionContent}>
           <SettingItem
-            title="今日の質問通知"
-            showArrow={false}
-            rightElement={
-              <Switch
-                value={true}
-                onValueChange={() => {
-                  // TODO: Toggle notification
-                }}
-                trackColor={{ true: colors.accent }}
-              />
-            }
+            title="通知設定"
+            subtitle="プッシュ通知の設定"
+            onPress={() => router.push('/settings/notifications')}
+          />
+        </View>
+      </View>
+
+      {/* Share Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>共有</Text>
+        <View style={styles.sectionContent}>
+          <SettingItem
+            title="プロフィールを共有"
+            subtitle="QRコード・リンクで共有"
+            onPress={() => router.push('/share-profile')}
           />
         </View>
       </View>
@@ -163,21 +161,15 @@ export default function SettingsScreen() {
         <View style={styles.sectionContent}>
           <SettingItem
             title="利用規約"
-            onPress={() => {
-              // TODO: Open terms
-            }}
+            onPress={() => handleOpenLink('https://example.com/terms')}
           />
           <SettingItem
             title="プライバシーポリシー"
-            onPress={() => {
-              // TODO: Open privacy policy
-            }}
+            onPress={() => handleOpenLink('https://example.com/privacy')}
           />
           <SettingItem
             title="お問い合わせ"
-            onPress={() => {
-              // TODO: Open contact
-            }}
+            onPress={handleContact}
           />
         </View>
       </View>
@@ -189,7 +181,7 @@ export default function SettingsScreen() {
           <SettingItem
             title="バージョン"
             showArrow={false}
-            rightElement={<Text style={styles.versionText}>1.0.0</Text>}
+            rightElement={<Text style={styles.versionText}>{appVersion}</Text>}
           />
         </View>
       </View>
@@ -204,7 +196,7 @@ export default function SettingsScreen() {
           />
           <SettingItem
             title="アカウント削除"
-            onPress={handleDeleteAccount}
+            onPress={() => router.push('/settings/delete-account')}
             showArrow={false}
             danger
           />

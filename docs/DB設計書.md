@@ -1,5 +1,15 @@
 # DB設計書 — Q.（仮）
 
+## 更新履歴
+
+| 日付 | 内容 |
+|---|---|
+| 2026-02-04 | 実装に合わせて更新: Usersテーブルにusername/bio/isPrivateフィールド追加、displayName上限を50文字に変更、email-index/username-index GSI追加 |
+| 2026-02-05 | 実装との整合性確認: username-indexは未実装のためTODOマーク、Followsテーブルの属性名確認（followeeId）|
+| 2026-02-05 | Phase 5実装: AdminLogsテーブル追加、Usersテーブルに isAdmin 属性追加 |
+
+---
+
 ## 1. 概要
 
 - **データベース**: Amazon DynamoDB
@@ -45,14 +55,18 @@
 |---|---|---|---|
 | **userId** | String | ユーザーID（UUID） | PK |
 | appId | String | アプリ内ID（3〜15文字、英小文字+数字+_） | ○ |
-| displayName | String | 表示名（1〜20文字）、未設定時はnull | - |
+| username | String | ユーザー名（3〜20文字、英数字+_）、変更可能 | - |
+| displayName | String | 表示名（1〜50文字）、未設定時はnull | - |
+| bio | String | 自己紹介（200文字以下） | - |
 | email | String | メールアドレス（小文字正規化済み） | ○ |
 | birthDate | String | 生年月日（YYYY-MM-DD） | ○ |
 | profileImageUrl | String | プロフィール画像のS3 URL | - |
+| isPrivate | Boolean | 非公開アカウントか | - |
 | visibilityType | String | 閲覧範囲（`mutual` / `followers`） | ○ |
 | followingCount | Number | フォロー数 | ○ |
 | followerCount | Number | フォロワー数 | ○ |
 | isBanned | Boolean | BANされているか | ○ |
+| isAdmin | Boolean | 管理者権限を持つか | - |
 | createdAt | String | 作成日時（ISO 8601） | ○ |
 | updatedAt | String | 更新日時（ISO 8601） | ○ |
 
@@ -62,14 +76,20 @@
 | Partition Key (PK) | userId |
 
 **GSI:**
-| GSI名 | PK | SK | 用途 |
-|---|---|---|---|
-| GSI1_AppId | appId | - | アプリ内IDでユーザー検索 |
+| GSI名 | PK | SK | 用途 | 実装状況 |
+|---|---|---|---|---|
+| GSI1_AppId | appId | - | アプリ内IDでユーザー検索 | ✅ |
+| email-index | email | - | メールアドレスでユーザー検索（ログイン時） | ✅ |
+| username-index | username | - | ユーザー名の重複チェック | ❌ TODO |
+
+> **変更理由:**
+> - username-index: ユーザー名の重複チェック機能は現在未使用のため、GSIは未作成。必要になった時点で追加予定
 
 **備考:**
 - `visibilityType`: `mutual`=相互フォローのみ、`followers`=フォロワーまで
 - デフォルト: `visibilityType = mutual`
 - `followingCount`/`followerCount` はフォロー時にアトミックカウンターで更新
+- `appId`は初回設定後変更不可、`username`は変更可能
 
 ---
 
@@ -360,11 +380,61 @@ Expo Push Notification用のトークンを管理するテーブル。
 
 ---
 
+### 3.12 AdminLogs（監査ログ）
+
+管理者の操作履歴を記録するテーブル。
+
+| 属性名 | 型 | 説明 | 必須 |
+|---|---|---|---|
+| **pk** | String | パーティションキー（固定値 `LOG`） | PK |
+| **sk** | String | ソートキー（`{timestamp}#{logId}` 形式） | SK |
+| logId | String | ログID（UUID） | ○ |
+| adminId | String | 操作した管理者のユーザーID | ○ |
+| adminEmail | String | 操作した管理者のメールアドレス | - |
+| action | String | 操作種別（下記参照） | ○ |
+| targetType | String | 対象の種別（ngWord, question, report等） | - |
+| targetId | String | 対象のID | - |
+| details | Map | 操作の詳細情報 | - |
+| ipAddress | String | 操作元IPアドレス | - |
+| timestamp | String | 操作日時（ISO 8601） | ○ |
+| ttl | Number | TTL（90日後に自動削除） | ○ |
+
+**操作種別（action）:**
+| action | 説明 |
+|---|---|
+| `ADD_NG_WORD` | NGワード追加 |
+| `DELETE_NG_WORD` | NGワード削除 |
+| `CREATE_QUESTION` | お題作成 |
+| `SET_DAILY_QUESTION` | 今日のお題設定 |
+| `UPDATE_REPORT` | 通報ステータス更新 |
+| `REVIEW_SUBMISSION` | 提案お題の承認/却下 |
+| `BAN_USER` | ユーザーBAN |
+| `UNBAN_USER` | BAN解除 |
+| `REVIEW_FLAGGED_POST` | フラグ付き投稿の対応 |
+
+**キー設計:**
+| キー | 属性 |
+|---|---|
+| Partition Key (PK) | pk |
+| Sort Key (SK) | sk |
+
+**GSI:**
+| GSI名 | PK | SK | 用途 |
+|---|---|---|---|
+| GSI1_Action | action | timestamp | アクション種別でフィルタ |
+| GSI2_Admin | adminId | timestamp | 管理者IDでフィルタ |
+
+**備考:**
+- TTLにより90日後に自動削除
+- 全ログ取得時は `pk = LOG` でクエリ
+
+---
+
 ## 4. テーブル一覧サマリー
 
 | # | テーブル名 | PK | SK | GSI数 | 用途 |
 |---|---|---|---|---|---|
-| 1 | Users | userId | - | 1 | ユーザー情報 |
+| 1 | Users | userId | - | 3 | ユーザー情報 |
 | 2 | DailyQuestions | date | - | 0 | 日別お題 |
 | 3 | Questions | questionId | - | 2 | お題マスタ |
 | 4 | Answers | date | userId | 1 | 回答 |
@@ -375,8 +445,9 @@ Expo Push Notification用のトークンを管理するテーブル。
 | 9 | UserQuestionSubmissions | date | userId | 0 | お題提出履歴 |
 | 10 | NGWords | word | - | 0 | NGワード |
 | 11 | PushTokens | userId | token | 0 | プッシュトークン |
+| 12 | AdminLogs | pk | sk | 2 | 監査ログ |
 
-**合計: 11テーブル、7 GSI**
+**合計: 12テーブル、11 GSI**
 
 ---
 

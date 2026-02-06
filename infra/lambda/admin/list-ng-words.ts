@@ -3,7 +3,6 @@ import { scanItems, TABLES } from '../common/dynamodb';
 import { success, serverError } from '../common/response';
 
 interface NgWord {
-  wordId: string;
   word: string;
   createdAt: string;
 }
@@ -15,8 +14,8 @@ export const handler: APIGatewayProxyHandler = async () => {
     });
 
     return success({
-      ngWords: ngWords.map((w) => ({
-        wordId: w.wordId,
+      items: ngWords.map((w) => ({
+        wordId: w.word, // wordをIDとして使用（テーブルのパーティションキー）
         word: w.word,
         createdAt: w.createdAt,
       })),

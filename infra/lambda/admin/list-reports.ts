@@ -38,7 +38,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       .slice(0, limit);
 
     if (filteredReports.length === 0) {
-      return success({ reports: [] });
+      return success({ items: [] });
     }
 
     // Get user details for reporters and targets
@@ -89,7 +89,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       };
     });
 
-    return success({ reports: result });
+    return success({ items: result });
   } catch (err) {
     console.error('List reports error:', err);
     return serverError('Failed to list reports');

@@ -9,6 +9,7 @@ import ReportsPage from './pages/ReportsPage'
 import UsersPage from './pages/UsersPage'
 import NgWordsPage from './pages/NgWordsPage'
 import FlaggedPostsPage from './pages/FlaggedPostsPage'
+import AdminLogsPage from './pages/AdminLogsPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
@@ -39,6 +40,7 @@ function App() {
         <Route path="users" element={<UsersPage />} />
         <Route path="ng-words" element={<NgWordsPage />} />
         <Route path="flagged-posts" element={<FlaggedPostsPage />} />
+        <Route path="logs" element={<AdminLogsPage />} />
       </Route>
     </Routes>
   )
